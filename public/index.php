@@ -57,5 +57,5 @@ echo json_encode([
     'status' => 'operational',
     'admin_dashboard' => '/admin/index.html',
     'health_endpoint' => '/health',
-    'documentation' => 'See docs/ for Windows Server, IIS See README.md for Windows Server & MySQL setup MySQL setup'
+    'documentation' => 'See README.md and docs/ for Windows Server, IIS & MySQL setup'
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

@@ -9,12 +9,13 @@ use Terrarium\Domain\Payment\PaymentGatewayInterface;
 
 final class VerifyPaymentUseCase
 {
+    /** @return array{success: bool, reference_id: ?string, raw_response: array<string, mixed>} */
     public function execute(
         Order $order,
         PaymentGatewayInterface $gateway,
         string $authorityOrToken
     ): array {
-        $result = $gateway->verifyPayment($authorityOrToken, $order->totalPrice);
+        $result = $gateway->verifyPayment($authorityOrToken, $order->totalPrice, $order->id);
         if ($result['success']) {
             $order->markAsPaid();
         }

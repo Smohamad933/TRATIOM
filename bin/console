@@ -1,0 +1,116 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Terrarium CLI
+ *   php bin/console migrate              Apply pending database migrations
+ *   php bin/console migrate:status       List pending migrations
+ *   php bin/console key:generate         Generate APP_KEY in .env
+ *   php bin/console admin:add <mobile>   Grant admin access to a mobile number
+ *   php bin/console admin:remove <mobile>
+ *   php bin/console cleanup              Purge expired tokens and old OTP codes
+ *   php bin/console check                Diagnose the server environment
+ */
+
+use Terrarium\Infrastructure\Persistence\Database;
+use Terrarium\Infrastructure\Persistence\Migrator;
+use Terrarium\Infrastructure\Persistence\Repositories\OtpRepository;
+use Terrarium\Infrastructure\Persistence\Repositories\TokenRepository;
+use Terrarium\Infrastructure\Persistence\Repositories\UserRepository;
+use Terrarium\Application\UseCases\Auth\OtpService;
+
+if (PHP_SAPI !== 'cli') {
+    exit(1);
+}
+
+/** @var \Terrarium\Kernel\Application $app */
+$app = require dirname(__DIR__) . '/bootstrap/app.php';
+$cmd = $argv[1] ?? 'help';
+$arg = $argv[2] ?? null;
+
+$ok = fn (string $m) => fwrite(STDOUT, "\033[32m✔\033[0m {$m}\n");
+$fail = function (string $m): never { fwrite(STDERR, "\033[31m✘\033[0m {$m}\n"); exit(1); };
+
+try {
+    switch ($cmd) {
+        case 'migrate':
+            $ran = $app->get(Migrator::class)->migrate();
+            $ran ? array_map(fn ($v) => $ok("Migrated: {$v}"), $ran) : $ok('Nothing to migrate.');
+            break;
+
+        case 'migrate:status':
+            $pending = $app->get(Migrator::class)->pending();
+            $pending ? array_map(fn ($v) => fwrite(STDOUT, "  pending: {$v}\n"), $pending) : $ok('All migrations applied.');
+            break;
+
+        case 'key:generate':
+            $envFile = $app->basePath . '/.env';
+            if (!is_file($envFile)) {
+                $fail('.env not found. Copy .env.example to .env first.');
+            }
+            $key = 'base64:' . base64_encode(random_bytes(32));
+            $contents = (string) file_get_contents($envFile);
+            $contents = preg_match('/^APP_KEY=.*$/m', $contents)
+                ? (string) preg_replace('/^APP_KEY=.*$/m', 'APP_KEY=' . $key, $contents)
+                : $contents . "\nAPP_KEY={$key}\n";
+            file_put_contents($envFile, $contents);
+            $ok('APP_KEY generated.');
+            break;
+
+        case 'admin:add':
+        case 'admin:remove':
+            if (!$arg) {
+                $fail("Usage: php bin/console {$cmd} 09121234567");
+            }
+            $mobile = OtpService::normalizeMobile($arg);
+            $app->get(UserRepository::class)->setAdmin($mobile, $cmd === 'admin:add');
+            $ok(($cmd === 'admin:add' ? 'Admin access granted to ' : 'Admin access removed from ') . $mobile);
+            break;
+
+        case 'cleanup':
+            $t = $app->get(TokenRepository::class)->purgeExpired();
+            $o = $app->get(OtpRepository::class)->purgeOlderThan(gmdate('Y-m-d H:i:s', time() - 7 * 86400));
+            $ok("Removed {$t} expired tokens and {$o} old OTP codes.");
+            break;
+
+        case 'check':
+            $problems = 0;
+            $line = function (bool $good, string $label, string $hint = '') use (&$problems) {
+                fwrite(STDOUT, ($good ? "\033[32m  OK \033[0m" : "\033[31m FAIL\033[0m") . " {$label}" . (!$good && $hint ? "  → {$hint}" : '') . "\n");
+                $problems += $good ? 0 : 1;
+            };
+            $line(PHP_VERSION_ID >= 80300, 'PHP >= 8.3 (current ' . PHP_VERSION . ')', 'Install PHP 8.3+ x64 NTS');
+            foreach (['pdo_mysql', 'curl', 'mbstring', 'openssl', 'json'] as $ext) {
+                $line(extension_loaded($ext), "extension {$ext}", "Enable extension={$ext} in php.ini");
+            }
+            $line(is_file($app->basePath . '/.env'), '.env file exists', 'Copy .env.example to .env');
+            $line(strlen($app->appSecret()) >= 16 && !str_contains((string) env('APP_KEY'), 'GENERATE'), 'APP_KEY set', 'php bin/console key:generate');
+            $line(is_writable($app->basePath . '/storage/logs'), 'storage/logs writable', 'Grant IIS_IUSRS Modify on storage\\');
+            try {
+                $app->get(Database::class)->first('SELECT 1 AS ok');
+                $line(true, 'database connection (' . $app->get(Database::class)->driver() . ')');
+                $pending = $app->get(Migrator::class)->pending();
+                $line($pending === [], 'migrations applied', 'php bin/console migrate');
+            } catch (Throwable $e) {
+                $line(false, 'database connection', $e->getMessage());
+            }
+            $url = (string) $app->config->get('app.url');
+            $line($app->isProduction() ? str_starts_with($url, 'https://') : true, "APP_URL ({$url})", 'Use https:// in production (payment callbacks)');
+            $line(!$app->debug(), 'APP_DEBUG disabled', 'Set APP_DEBUG=false');
+            $sms = (string) $app->config->get('sms.default');
+            $line(!$app->isProduction() || $sms !== 'log', "SMS provider ({$sms})", 'Set SMS_DEFAULT_PROVIDER=kavenegar and SMS_API_KEY');
+            $gws = $app->availableGateways();
+            $line($gws !== [], 'payment gateways available: ' . ($gws ? implode(', ', $gws) : 'none'), 'Configure ZARINPAL_MERCHANT_ID (or another gateway) and ENABLED_PAYMENT_GATEWAYS');
+            $admins = (array) $app->config->get('app.admin_mobiles', []);
+            $line($admins !== [] || (int) ($app->get(Database::class)->first('SELECT COUNT(*) AS c FROM users WHERE is_admin = 1')['c'] ?? 0) > 0, 'at least one admin', 'Set ADMIN_MOBILES in .env or: php bin/console admin:add 09...');
+            fwrite(STDOUT, $problems ? "\n{$problems} problem(s) found.\n" : "\nAll checks passed.\n");
+            exit($problems ? 1 : 0);
+
+        default:
+            fwrite(STDOUT, "Terrarium CLI\n\n  migrate | migrate:status | key:generate | admin:add <mobile> | admin:remove <mobile> | cleanup | check\n");
+    }
+} catch (Throwable $e) {
+    $fail($e->getMessage());
+}

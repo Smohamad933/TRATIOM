@@ -3,59 +3,41 @@
 declare(strict_types=1);
 
 /**
- * Terrarium Configurator Application Entry Point (IIS FastCGI & REST API)
+ * Terrarium Configurator — front controller (IIS FastCGI / php -S).
  */
 
-define('LARAVEL_START', microtime(true));
+use Terrarium\Infrastructure\Http\HttpException;
+use Terrarium\Infrastructure\Http\Request;
+use Terrarium\Infrastructure\Http\Response;
 
-// Basic JSON API Router & Health Check
-$uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$path = parse_url((string) ($_SERVER['HTTP_X_ORIGINAL_URL'] ?? $_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/';
 
-// Handle CORS
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-
-if ($method === 'OPTIONS') {
-    http_response_code(200);
-    exit;
+// Storefront & admin SPA entry points (IIS serves these directly as default documents; this covers php -S)
+if ($path === '/' || $path === '/index.html') {
+    header('Content-Type: text/html; charset=utf-8');
+    readfile(__DIR__ . '/index.html');
+    return;
+}
+if ($path === '/admin' || $path === '/admin/') {
+    header('Content-Type: text/html; charset=utf-8');
+    readfile(__DIR__ . '/admin/index.html');
+    return;
 }
 
-// Redirect /admin to /admin/index.html
-if ($uri === '/admin' || $uri === '/admin/') {
-    header('Location: /admin/index.html');
-    exit;
+/** @var \Terrarium\Kernel\Application $app */
+$app = require dirname(__DIR__) . '/bootstrap/app.php';
+$router = (require dirname(__DIR__) . '/bootstrap/routes.php')($app);
+
+try {
+    $request = Request::fromGlobals();
+} catch (HttpException $e) {
+    Response::json(['success' => false, 'error' => ['code' => 'bad_request', 'message' => $e->getMessage()]], 400)->send();
+    return;
 }
 
-// Health Check Endpoint (Rule 34)
-if ($uri === '/health') {
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'status' => 'UP',
-        'timestamp' => date('c'),
-        'environment' => [
-            'os' => 'Windows Server',
-            'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Microsoft-IIS',
-            'php_version' => PHP_VERSION,
-            'sapi' => PHP_SAPI,
-        ],
-        'services' => [
-            'database' => 'connected',
-            'cache' => 'ready',
-            'queue' => 'running',
-        ]
-    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    exit;
+if ($request->method === 'OPTIONS') {
+    $app->handle($request, new \Terrarium\Infrastructure\Http\Router())->send(); // CORS preflight headers only
+    return;
 }
 
-// Default Fallback
-header('Content-Type: application/json; charset=utf-8');
-echo json_encode([
-    'project' => 'Terrarium Configurator API',
-    'version' => '1.0.0',
-    'status' => 'operational',
-    'admin_dashboard' => '/admin/index.html',
-    'health_endpoint' => '/health',
-    'documentation' => 'See README.md and docs/ for Windows Server, IIS & MySQL setup'
-], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+$app->handle($request, $router)->send();

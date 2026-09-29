@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>تراریوم | تراریوم اختصاصی خودت را بساز</title>
+  <meta name="description" content="تراریوم دلخواهت را انتخاب کن: ظرف، گیاه، بستر و فیگور — با بررسی خودکار سازگاری گیاهان.">
+  <link rel="preload" href="/assets/fonts/Vazirmatn-FD-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container">
+      <a class="brand" href="#/"><span class="brand-logo">🌱</span><span>تراریوم</span></a>
+      <nav class="row gap-sm">
+        <a class="btn ghost sm" href="#/">ساخت تراریوم</a>
+        <a class="btn ghost sm" href="#/orders">سفارش‌های من</a>
+        <span id="auth-area"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="result-banner" class="mt"></div>
+
+    <!-- Configurator -->
+    <section id="view-builder">
+      <div class="hero">
+        <h1>تراریوم اختصاصی‌ات را بساز 🌿</h1>
+        <p class="muted">ظرف، گیاهان، بستر و تزئینات را انتخاب کن. سیستم به‌صورت خودکار سازگاری گیاهان، حجم و ظرفیت ظرف را بررسی می‌کند.</p>
+      </div>
+      <div class="layout">
+        <div class="stack">
+          <div class="card">
+            <div class="card-title"><h2>۱. ظرف شیشه‌ای</h2><span class="badge">الزامی</span></div>
+            <div class="options" id="opt-glass"><p class="muted">در حال بارگذاری…</p></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><h2>۲. گیاهان</h2><span class="badge">حداقل یکی</span></div>
+            <div class="options" id="opt-plants"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><h2>۳. بستر و سنگ</h2><span class="badge">اختیاری</span></div>
+            <div class="options" id="opt-stones"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><h2>۴. فیگور و تزئینات</h2><span class="badge">اختیاری</span></div>
+            <div class="options" id="opt-figures"></div>
+          </div>
+        </div>
+
+        <aside class="sticky">
+          <div class="card">
+            <h3>خلاصه تراریوم شما</h3>
+            <div id="summary"><p class="muted">ابتدا یک ظرف انتخاب کنید.</p></div>
+            <button id="btn-checkout" class="btn primary block mt" disabled>ادامه و ثبت سفارش</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Checkout -->
+    <section id="view-checkout" class="hidden">
+      <div class="hero"><h1>ثبت سفارش</h1><p class="muted">اطلاعات ارسال را وارد کنید و به درگاه پرداخت منتقل شوید.</p></div>
+      <div class="layout">
+        <form id="checkout-form" class="card stack" novalidate>
+          <div class="grid grid-2">
+            <label class="field"><span>نام و نام خانوادگی گیرنده *</span><input type="text" name="recipient_name" required maxlength="150" autocomplete="name"></label>
+            <label class="field"><span>شماره تماس گیرنده *</span><input type="tel" name="recipient_phone" required maxlength="20" autocomplete="tel" class="ltr" style="width:100%"></label>
+          </div>
+          <label class="field"><span>آدرس کامل *</span><textarea name="shipping_address" required maxlength="1000" autocomplete="street-address"></textarea></label>
+          <div class="grid grid-2">
+            <label class="field"><span>کد پستی (۱۰ رقم)</span><input type="text" name="postal_code" inputmode="numeric" maxlength="10"></label>
+            <label class="field"><span>روش پرداخت *</span><select name="gateway" id="gateway-select"></select></label>
+          </div>
+          <label class="field"><span>توضیحات (اختیاری)</span><textarea name="customer_note" maxlength="1000"></textarea></label>
+          <div id="checkout-error"></div>
+          <div class="row gap">
+            <button class="btn primary" type="submit" id="btn-pay">پرداخت و ثبت نهایی</button>
+            <a class="btn" href="#/">بازگشت و ویرایش</a>
+          </div>
+        </form>
+        <aside class="sticky"><div class="card"><h3>فاکتور</h3><div id="checkout-summary"></div></div></aside>
+      </div>
+    </section>
+
+    <!-- Orders -->
+    <section id="view-orders" class="hidden">
+      <div class="hero"><h1>سفارش‌های من</h1></div>
+      <div id="orders-list" class="stack"></div>
+    </section>
+
+    <section id="view-order" class="hidden">
+      <div class="hero row between wrap gap"><h1 id="order-title">جزئیات سفارش</h1><a class="btn" href="#/orders">بازگشت</a></div>
+      <div id="order-detail"></div>
+    </section>
+  </main>
+
+  <footer class="footer">© تراریوم — ساخته‌شده با 🌱</footer>
+
+  <!-- Login modal -->
+  <div id="login-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <div class="modal">
+      <div class="row between"><h2 id="login-title">ورود / ثبت‌نام</h2><button class="btn ghost sm" data-close>✕</button></div>
+      <form id="login-step-mobile" class="stack">
+        <p class="muted">شماره موبایل خود را وارد کنید تا کد تأیید برایتان پیامک شود.</p>
+        <label class="field"><span>شماره موبایل</span><input type="tel" name="mobile" class="ltr" style="width:100%" placeholder="09121234567" required autocomplete="tel"></label>
+        <button class="btn primary block" type="submit">دریافت کد</button>
+      </form>
+      <form id="login-step-code" class="stack hidden">
+        <p class="muted">کد ارسال‌شده به <b id="login-mobile" class="ltr"></b> را وارد کنید.</p>
+        <div id="dev-code"></div>
+        <input type="text" name="code" class="otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
+        <button class="btn primary block" type="submit">تأیید و ورود</button>
+        <div class="row between">
+          <button class="btn ghost sm" type="button" id="btn-change-mobile">تغییر شماره</button>
+          <button class="btn ghost sm" type="button" id="btn-resend" disabled>ارسال مجدد</button>
+        </div>
+      </form>
+      <div id="login-error" class="mt"></div>
+    </div>
+  </div>
+
+  <script src="/assets/js/common.js"></script>
+  <script src="/assets/js/store.js"></script>
+</body>
+</html>

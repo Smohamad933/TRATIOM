@@ -10,13 +10,14 @@ interface PaymentGatewayInterface
 {
     public function getGatewayIdentifier(): string;
 
+    /** True when the required credentials are present. */
+    public function isConfigured(): bool;
+
     /**
-     * Initiates payment with provider and returns payment redirect URL or token.
-     * @param string $orderId
-     * @param Money $amount
-     * @param string $callbackUrl
-     * @param array<string, mixed> $metadata
+     * Registers the payment with the provider and returns the URL the customer must be redirected to.
+     * @param array<string, mixed> $metadata  (order_number, mobile, description, ...)
      * @return array{payment_url: string, authority_or_token: string}
+     * @throws PaymentGatewayException
      */
     public function initiatePayment(
         string $orderId,
@@ -26,13 +27,20 @@ interface PaymentGatewayInterface
     ): array;
 
     /**
-     * Verifies payment result server-to-server.
-     * @param string $authorityOrToken
-     * @param Money $expectedAmount
+     * Extracts the payment token/authority from the provider's callback request (query + POST params).
+     * @param array<string, mixed> $params
+     * @return array{token: ?string, provider_reports_success: bool}
+     */
+    public function parseCallback(array $params): array;
+
+    /**
+     * Verifies the payment server-to-server. MUST check the amount against $expectedAmount.
      * @return array{success: bool, reference_id: ?string, raw_response: array<string, mixed>}
+     * @throws PaymentGatewayException on transport/provider errors
      */
     public function verifyPayment(
         string $authorityOrToken,
-        Money $expectedAmount
+        Money $expectedAmount,
+        string $orderId = ''
     ): array;
 }

@@ -14,17 +14,18 @@ use Terrarium\Domain\Ordering\OrderItem;
 
 final class CreateOrderUseCase
 {
-    public function execute(CreateOrderInput $input, Configuration $configuration): Order
+    public function execute(CreateOrderInput $input, Configuration $configuration, ?Money $shipping = null, ?array $snapshot = null): Order
     {
         if (!$configuration->isValid) {
             throw new DomainException("Cannot create an order from an invalid configuration.");
         }
 
+        $currency = $configuration->calculatedPrice->currency;
         $orderId = 'ord_' . bin2hex(random_bytes(10));
-        $orderNumber = 'TRM-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
+        $orderNumber = 'TRM-' . strtoupper(bin2hex(random_bytes(4)));
 
-        // Create immutable snapshot
-        $snapshot = $configuration->createSnapshot();
+        // Immutable snapshot: prices are frozen at order time
+        $snapshot ??= $configuration->createSnapshot();
 
         $orderItem = new OrderItem(
             id: 'item_' . bin2hex(random_bytes(10)),
@@ -41,8 +42,8 @@ final class CreateOrderUseCase
             orderNumber: $orderNumber,
             status: OrderStatus::PENDING_PAYMENT,
             totalPrice: $configuration->calculatedPrice,
-            discount: Money::zero($configuration->calculatedPrice->currency),
-            shipping: Money::zero($configuration->calculatedPrice->currency),
+            discount: Money::zero($currency),
+            shipping: $shipping ?? Money::zero($currency),
             items: [$orderItem]
         );
     }

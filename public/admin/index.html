@@ -1,526 +1,58 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>پنل مدیریت لایو پیکربندی تراریوم | Terrarium Live Admin</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Vazirmatn', sans-serif; background-color: #0b0f17; color: #e2e8f0; }
-    .glass-card { background: rgba(18, 24, 38, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
-    .badge { display: inline-flex; align-items: center; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>پنل مدیریت تراریوم</title>
+  <link rel="stylesheet" href="/assets/css/app.css">
 </head>
-<body class="min-h-screen flex flex-col selection:bg-emerald-500 selection:text-black">
-
-  <!-- Top Navigation Bar -->
-  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-slate-950 font-black text-xl">
-        🌱
+<body>
+  <header class="topbar">
+    <div class="container">
+      <a class="brand" href="/admin/"><span class="brand-logo">🌱</span><span>مدیریت تراریوم</span></a>
+      <div class="row gap-sm">
+        <a class="btn ghost sm" href="/" target="_blank" rel="noopener">مشاهده فروشگاه</a>
+        <span id="admin-user"></span>
       </div>
-      <div>
-        <h1 class="text-lg font-bold text-white tracking-wide">مرکز مدیریت و کنترل زنده سیستم تراریوم</h1>
-        <p class="text-xs text-slate-400">Windows Server 2022 + IIS FastCGI + MySQL 8.0</p>
-      </div>
-    </div>
-    <div class="flex items-center gap-4 text-xs font-medium">
-      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-emerald-400">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        سرویس لایو (Live System Active)
-      </span>
-      <button onclick="refreshData()" class="bg-slate-800 hover:bg-slate-700 px-3.5 py-1.5 rounded-lg border border-slate-700 transition">
-        🔄 بازخوانی دیتا
-      </button>
     </div>
   </header>
 
-  <!-- Main Container -->
-  <div class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-    <!-- Sidebar Navigation / Tabs -->
-    <aside class="lg:col-span-1 space-y-3">
-      <nav class="space-y-1">
-        <button onclick="switchTab('pricing')" id="tab-btn-pricing" class="w-full text-right px-4 py-3 rounded-xl font-medium text-sm flex items-center justify-between bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 transition">
-          <span>💰 مدیریت قیمت‌ها و موجودی</span>
-          <span>⚡</span>
-        </button>
-        <button onclick="switchTab('rules')" id="tab-btn-rules" class="w-full text-right px-4 py-3 rounded-xl font-medium text-sm flex items-center justify-between bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-transparent transition">
-          <span>🛡️ موتور قوانین سازگاری</span>
-          <span>⚙️</span>
-        </button>
-        <button onclick="switchTab('simulator')" id="tab-btn-simulator" class="w-full text-right px-4 py-3 rounded-xl font-medium text-sm flex items-center justify-between bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-transparent transition">
-          <span>🧪 شبیه‌ساز زنده کانفیگوراتور</span>
-          <span>🔬</span>
-        </button>
-        <button onclick="switchTab('orders')" id="tab-btn-orders" class="w-full text-right px-4 py-3 rounded-xl font-medium text-sm flex items-center justify-between bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-transparent transition">
-          <span>📦 مانیتورینگ سفارش‌ها و اسنپ‌شات</span>
-          <span>📋</span>
-        </button>
-        <button onclick="switchTab('system')" id="tab-btn-system" class="w-full text-right px-4 py-3 rounded-xl font-medium text-sm flex items-center justify-between bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-transparent transition">
-          <span>🖥️ وضعیت سرور و درگاه‌ها</span>
-          <span>📊</span>
-        </button>
-      </nav>
-
-      <!-- Server Quick Stats Widget -->
-      <div class="glass-card p-4 rounded-2xl border border-slate-800 mt-6 space-y-3 text-xs">
-        <div class="font-bold text-slate-200 border-b border-slate-800 pb-2">شاخص‌های زیرساخت IIS</div>
-        <div class="flex justify-between text-slate-400"><span>محیط:</span> <span class="text-white font-mono">Windows Server</span></div>
-        <div class="flex justify-between text-slate-400"><span>هندلر وب:</span> <span class="text-white font-mono">IIS FastCGI NTS</span></div>
-        <div class="flex justify-between text-slate-400"><span>پایگاه داده:</span> <span class="text-white font-mono">MySQL 8.0 InnoDB</span></div>
-        <div class="flex justify-between text-slate-400"><span>تراکنش مالی:</span> <span class="text-emerald-400 font-mono">ACID Enabled</span></div>
-      </div>
-    </aside>
-
-    <!-- Main Content Work Area -->
-    <main class="lg:col-span-3 space-y-6">
-
-      <!-- Alert Notification Banner -->
-      <div id="alert-banner" class="hidden p-4 rounded-xl border text-sm flex items-center justify-between">
-        <span id="alert-text"></span>
-        <button onclick="hideAlert()" class="text-xs px-2 py-1 bg-black/20 rounded">بستن</button>
-      </div>
-
-      <!-- TAB 1: Live Pricing & Catalog Management -->
-      <section id="tab-pricing" class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-bold text-white">تغییر زنده قیمت‌ها و موجودی قطعات (Live Catalog & Pricing)</h2>
-          <span class="text-xs text-slate-400">تغییرات فوراً در فرانت‌اند کانفیگوراتور و فاکتورها اعمال می‌شود.</span>
-        </div>
-
-        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
-          <div class="overflow-x-auto">
-            <table class="w-full text-right text-xs">
-              <thead class="text-slate-400 border-b border-slate-800">
-                <tr>
-                  <th class="pb-3">نوع قطعه</th>
-                  <th class="pb-3">عنوان</th>
-                  <th class="pb-3">شناسه فیزیکی</th>
-                  <th class="pb-3">قیمت فعلی (ریال)</th>
-                  <th class="pb-3">تغییر قیمت لایو</th>
-                  <th class="pb-3">وضعیت موجودی</th>
-                  <th class="pb-3">عملیات</th>
-                </tr>
-              </thead>
-              <tbody id="catalog-table-body" class="divide-y divide-slate-800/60">
-                <!-- Dynamically Rendered -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 2: Compatibility Rules Engine -->
-      <section id="tab-rules" class="hidden space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-bold text-white">مدیریت داینامیک قوانین سازگاری (Compatibility Rule Engine)</h2>
-          <button onclick="openNewRuleModal()" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg font-semibold transition">
-            + افزودن قانون جدید
-          </button>
-        </div>
-
-        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
-          <div class="space-y-3" id="rules-container">
-            <!-- Rules rendered dynamically -->
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 3: Live Configurator Simulator -->
-      <section id="tab-simulator" class="hidden space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-bold text-white">شبیه‌ساز و تست زنده محاسبات تراریوم (Configurator Sandbox)</h2>
-          <span class="text-xs text-slate-400">تست بلادرنگ موتورهای Pricing و Compatibility</span>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
-            <h3 class="font-bold text-sm text-emerald-400">۱. انتخاب قطعات تست</h3>
-            <div class="space-y-3 text-xs">
-              <div>
-                <label class="block text-slate-400 mb-1">ظرف شیشه‌ای پایه:</label>
-                <select id="sim-glass" onchange="runSimulation()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white">
-                  <option value="g1">شیشه استوانه‌ای بزرگ (دربسته - ۵۰۰۰ml - ظرفیت ۴ گیاه)</option>
-                  <option value="g2">شیشه کروی دکوراتیو (درباز - ۲۵۰۰ml - ظرفیت ۲ گیاه)</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-slate-400 mb-1">افزودن گیاهان (چندانتخابی):</label>
-                <div class="space-y-1.5" id="sim-plants-list">
-                  <label class="flex items-center gap-2">
-                    <input type="checkbox" value="p1" checked onchange="runSimulation()" class="rounded bg-slate-800 text-emerald-500">
-                    <span>سرخس بوستون (رطوبت بالا - سازگار با شیشه بسته)</span>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <input type="checkbox" value="p2" onchange="runSimulation()" class="rounded bg-slate-800 text-emerald-500">
-                    <span>کاکتوس هاورتیا (رطوبت پایین - ناسازگار با شیشه بسته و سرخس!)</span>
-                  </label>
-                  <label class="flex items-center gap-2">
-                    <input type="checkbox" value="p3" checked onchange="runSimulation()" class="rounded bg-slate-800 text-emerald-500">
-                    <span>خزه پین‌کوشن (رطوبت بالا - حجم کم)</span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-slate-400 mb-1">بستر سنگ و زهکشی:</label>
-                <select id="sim-stone" onchange="runSimulation()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white">
-                  <option value="s1">سنگریزه آتشفشانی سیاه (زهکشی ۵۰۰ml)</option>
-                  <option value="s2">شن سفید کوارتز دکوراتیو (۳۰۰ml)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
-            <h3 class="font-bold text-sm text-emerald-400">۲. تحلیل آنی موتور دامنه (Domain Output)</h3>
-            <div id="sim-result-box" class="p-4 rounded-xl text-xs space-y-2 border">
-              <!-- Result rendered live -->
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 4: Orders & Snapshots Monitoring -->
-      <section id="tab-orders" class="hidden space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-bold text-white">مدیریت سفارش‌ها و ممیزی اسنپ‌شات (Orders & Immutable Snapshots)</h2>
-          <span class="text-xs text-slate-400">تغییر وضعیت بر اساس State Machine کنترل می‌شود.</span>
-        </div>
-
-        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
-          <div class="overflow-x-auto">
-            <table class="w-full text-right text-xs">
-              <thead class="text-slate-400 border-b border-slate-800">
-                <tr>
-                  <th class="pb-3">شماره سفارش</th>
-                  <th class="pb-3">کاربر (موبایل)</th>
-                  <th class="pb-3">مبلغ کل فاکتور</th>
-                  <th class="pb-3">وضعیت فعلی</th>
-                  <th class="pb-3">تغییر وضعیت</th>
-                  <th class="pb-3">اسنپ‌شات قطعی</th>
-                </tr>
-              </thead>
-              <tbody id="orders-table-body" class="divide-y divide-slate-800/60">
-                <!-- Orders rendered dynamically -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 5: Server Health & Payment Gateways -->
-      <section id="tab-system" class="hidden space-y-4">
-        <h2 class="text-lg font-bold text-white">تنظیمات درگاه‌های پرداخت و بررسی سلامت سیستم</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
-            <h3 class="font-bold text-slate-200">وضعیت درگاه‌های پرداخت متصل</h3>
-            <div class="space-y-2">
-              <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg">
-                <span class="font-medium">زرین‌پال (ZarinPal Gateway)</span>
-                <span class="badge bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">فعال (Active)</span>
-              </div>
-              <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg">
-                <span class="font-medium">زیبال (Zibal Gateway)</span>
-                <span class="badge bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">فعال (Active)</span>
-              </div>
-              <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg">
-                <span class="font-medium">آی‌دی‌پی (IDPay Gateway)</span>
-                <span class="badge bg-slate-800 text-slate-400 border border-slate-700">آماده به کار</span>
-              </div>
-              <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg">
-                <span class="font-medium">استرایپ (Stripe International)</span>
-                <span class="badge bg-blue-500/20 text-blue-400 border border-blue-500/30">Webhook Idempotent</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
-            <h3 class="font-bold text-slate-200">چک‌لیست سلامت زیرساخت Windows + IIS</h3>
-            <div class="space-y-2">
-              <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg">
-                <span>FastCGI Process Pool:</span>
-                <span class="text-emerald-400 font-mono">Healthy (MaxInstances=10)</span>
-              </div>
-              <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg">
-                <span>MySQL Connection:</span>
-                <span class="text-emerald-400 font-mono">Connected (InnoDB UTF8MB4)</span>
-              </div>
-              <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg">
-                <span>Storage Write Permission:</span>
-                <span class="text-emerald-400 font-mono">IIS_IUSRS Granted</span>
-              </div>
-              <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg">
-                <span>Queue Worker:</span>
-                <span class="text-emerald-400 font-mono">NSSM Running</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-    </main>
+  <!-- Login -->
+  <div id="login-view" class="center-page hidden" style="min-height:calc(100vh - 64px)">
+    <div class="card narrow">
+      <h2>ورود مدیر</h2>
+      <p class="muted">با شماره موبایلی که در <code>ADMIN_MOBILES</code> تعریف شده وارد شوید.</p>
+      <form id="lg-mobile" class="stack">
+        <input type="tel" name="mobile" class="ltr" style="width:100%" placeholder="09121234567" required>
+        <button class="btn primary block">دریافت کد</button>
+      </form>
+      <form id="lg-code" class="stack hidden">
+        <div id="lg-dev"></div>
+        <input type="text" name="code" class="otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
+        <button class="btn primary block">ورود</button>
+      </form>
+      <div id="lg-error" class="mt"></div>
+    </div>
   </div>
 
-  <script>
-    // Live State Store
-    const state = {
-      catalog: [
-        { id: 'g1', type: 'شیشه', name: 'استوانه‌ای بزرگ دربسته', price: 4500000, stock: 24 },
-        { id: 'g2', type: 'شیشه', name: 'کروی دکوراتیو درباز', price: 3200000, stock: 15 },
-        { id: 'p1', type: 'گیاه', name: 'سرخس بوستون', price: 850000, stock: 60 },
-        { id: 'p2', type: 'گیاه', name: 'کاکتوس هاورتیا', price: 650000, stock: 40 },
-        { id: 'p3', type: 'گیاه', name: 'خزه پین‌کوشن', price: 400000, stock: 120 },
-        { id: 's1', type: 'بستر', name: 'سنگریزه آتشفشانی سیاه', price: 300000, stock: 200 },
-        { id: 'f1', type: 'فیگور', name: 'کلبه مینیاتوری چوبی', price: 950000, stock: 18 }
-      ],
-      rules: [
-        { id: 'r1', type: 'CLOSED_ECOSYSTEM', desc: 'ممنوعیت قرارگیری کاکتوس در محفظه شیشه‌ای دربسته', status: 'ACTIVE' },
-        { id: 'r2', type: 'MOISTURE_CONFLICT', desc: 'ممنوعیت هم‌نشینی سرخس (رطوبت بالا) با هاورتیا (خشکی‌پسند)', status: 'ACTIVE' },
-        { id: 'r3', type: 'VOLUME_CAPACITY', desc: 'کنترل سخت‌گیرانه سقف حجم مفید شیشه (Usable Volume)', status: 'ACTIVE' }
-      ],
-      orders: [
-        {
-          id: 'ord-1001',
-          mobile: '09123456789',
-          total: 6050000,
-          status: 'paid',
-          snapshot: {
-            glass: 'استوانه‌ای بزرگ دربسته (۴,۵۰۰,۰۰۰ ریال)',
-            plants: ['سرخس بوستون x1 (۸۵۰,۰۰۰)', 'خزه پین‌کوشن x1 (۴۰۰,۰۰۰)'],
-            stones: ['سنگریزه آتشفشانی سیاه (۳۰۰,۰۰۰)']
-          }
-        },
-        {
-          id: 'ord-1002',
-          mobile: '09359876543',
-          total: 3200000,
-          status: 'pending_payment',
-          snapshot: {
-            glass: 'کروی دکوراتیو درباز (۳,۲۰۰,۰۰۰ ریال)',
-            plants: ['کاکتوس هاورتیا x1 (۶۵۰,۰۰۰)']
-          }
-        }
-      ]
-    };
+  <!-- App -->
+  <div id="app-view" class="container hidden">
+    <div class="admin-shell">
+      <nav class="side-nav" id="nav">
+        <button data-tab="dashboard" class="active">📊 داشبورد</button>
+        <button data-tab="orders">📦 سفارش‌ها</button>
+        <button data-tab="catalog">💰 قیمت و موجودی</button>
+        <button data-tab="rules">🛡️ قوانین سازگاری</button>
+        <button data-tab="system">🖥️ وضعیت سیستم</button>
+      </nav>
+      <main id="content"></main>
+    </div>
+  </div>
 
-    function renderCatalog() {
-      const tbody = document.getElementById('catalog-table-body');
-      tbody.innerHTML = '';
-      state.catalog.forEach((item, index) => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-900/50 transition';
-        tr.innerHTML = `
-          <td class="py-3 font-semibold text-emerald-400">${item.type}</td>
-          <td class="py-3 text-slate-200">${item.name}</td>
-          <td class="py-3 text-slate-400 font-mono">${item.id}</td>
-          <td class="py-3 font-mono text-white font-bold">${item.price.toLocaleString()}</td>
-          <td class="py-3">
-            <input type="number" id="price-input-${item.id}" value="${item.price}" class="w-28 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white font-mono text-xs">
-          </td>
-          <td class="py-3">
-            <span class="badge ${item.stock > 10 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">
-              ${item.stock} عدد
-            </span>
-          </td>
-          <td class="py-3">
-            <button onclick="updatePrice('${item.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs transition">
-              ذخیره آنی
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+  <div id="modal-root"></div>
 
-    function updatePrice(id) {
-      const input = document.getElementById(`price-input-${id}`);
-      const newPrice = parseInt(input.value);
-      const item = state.catalog.find(c => c.id === id);
-      if (item && newPrice > 0) {
-        item.price = newPrice;
-        showAlert(`قیمت «${item.name}» به ${newPrice.toLocaleString()} ریال به‌روزرسانی شد و بلافاصله در کل سیستم اعمال گردید.`, 'success');
-        renderCatalog();
-        runSimulation();
-      }
-    }
-
-    function renderRules() {
-      const container = document.getElementById('rules-container');
-      container.innerHTML = '';
-      state.rules.forEach((rule, idx) => {
-        const div = document.createElement('div');
-        div.className = 'flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800';
-        div.innerHTML = `
-          <div>
-            <div class="font-bold text-slate-200 text-xs">${rule.type}</div>
-            <div class="text-xs text-slate-400 mt-0.5">${rule.desc}</div>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="badge bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">${rule.status}</span>
-            <button onclick="toggleRule(${idx})" class="text-xs px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300">
-              تغییر وضعیت
-            </button>
-          </div>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    function openNewRuleModal() {
-      const type = prompt('نوع قانون (مثلاً CLOSED_ECOSYSTEM):');
-      if (!type || !type.trim()) return;
-      const desc = prompt('توضیح قانون:') || '';
-      state.rules.push({ id: 'r' + Date.now(), type: type.trim().toUpperCase(), desc: desc.trim(), status: 'ACTIVE' });
-      renderRules();
-      showAlert(`قانون «${type.trim().toUpperCase()}» اضافه شد.`, 'success');
-    }
-
-    function toggleRule(idx) {
-      state.rules[idx].status = state.rules[idx].status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
-      showAlert(`وضعیت قانون «${state.rules[idx].type}» تغییر یافت.`, 'info');
-      renderRules();
-      runSimulation();
-    }
-
-    function runSimulation() {
-      const glassVal = document.getElementById('sim-glass').value;
-      const checkedPlants = Array.from(document.querySelectorAll('#sim-plants-list input:checked')).map(i => i.value);
-      const stoneVal = document.getElementById('sim-stone').value;
-
-      const glass = state.catalog.find(c => c.id === glassVal);
-      const selectedPlants = state.catalog.filter(c => checkedPlants.includes(c.id));
-      const stone = state.catalog.find(c => c.id === stoneVal);
-
-      let subtotal = (glass ? glass.price : 0) + (stone ? stone.price : 0);
-      selectedPlants.forEach(p => subtotal += p.price);
-
-      const box = document.getElementById('sim-result-box');
-
-      // Check rules:
-      const hasClosedGlass = glassVal === 'g1';
-      const hasSucculent = checkedPlants.includes('p2');
-      const hasFern = checkedPlants.includes('p1');
-
-      let violations = [];
-      if (hasClosedGlass && hasSucculent) {
-        violations.push('❌ ناسازگاری زیستی: کاکتوس هاورتیا به دلیل رطوبت اشباع در شیشه دربسته دچار پوسیدگی طوقه می‌شود.');
-      }
-      if (hasSucculent && hasFern) {
-        violations.push('❌ تداخل رطوبتی: سرخس بوستون به رطوبت ۹۰٪ و هاورتیا به خاک خشک نیاز دارد؛ نگهداری هم‌زمان ناممکن است.');
-      }
-
-      if (violations.length > 0) {
-        box.className = 'p-4 rounded-xl text-xs space-y-2 border border-red-500/40 bg-red-950/20 text-red-300';
-        box.innerHTML = `
-          <div class="font-bold text-red-400 text-sm">⛔ پیکربندی نامعتبر (Rejected by Compatibility Engine)</div>
-          ${violations.map(v => `<div>${v}</div>`).join('')}
-          <div class="pt-2 border-t border-red-800/40 text-slate-300">
-            مجموع قیمت تخمینی: <b>${subtotal.toLocaleString()} ریال</b> (غیرقابل سفارش تا رفع خطا)
-          </div>
-        `;
-      } else {
-        box.className = 'p-4 rounded-xl text-xs space-y-2 border border-emerald-500/40 bg-emerald-950/20 text-emerald-300';
-        box.innerHTML = `
-          <div class="font-bold text-emerald-400 text-sm">✅ پیکربندی ۱۰۰٪ سازگار (Validated Successfully)</div>
-          <div>تمامی گونه‌های گیاهی از نظر چرخه اکوسیستم و حجم اشغالی تایید شدند.</div>
-          <div class="pt-2 border-t border-emerald-800/40 text-slate-200">
-            مبلغ کل محاسبه‌شده سرور: <b class="text-white text-sm font-mono">${subtotal.toLocaleString()} ریال</b>
-          </div>
-        `;
-      }
-    }
-
-    function renderOrders() {
-      const tbody = document.getElementById('orders-table-body');
-      tbody.innerHTML = '';
-      state.orders.forEach(order => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-900/50 transition';
-        tr.innerHTML = `
-          <td class="py-3 font-mono font-bold text-white">${order.id}</td>
-          <td class="py-3 font-mono text-slate-300">${order.mobile}</td>
-          <td class="py-3 font-mono text-white">${order.total.toLocaleString()} ریال</td>
-          <td class="py-3">
-            <span class="badge ${order.status === 'paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">
-              ${order.status}
-            </span>
-          </td>
-          <td class="py-3">
-            <select onchange="changeOrderStatus('${order.id}', this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white">
-              <option value="pending_payment" ${order.status === 'pending_payment' ? 'selected' : ''}>در انتظار پرداخت</option>
-              <option value="paid" ${order.status === 'paid' ? 'selected' : ''}>پرداخت‌شده</option>
-              <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>در حال ساخت</option>
-              <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>ارسال‌شده / تکمیل</option>
-              <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>لغو شده</option>
-            </select>
-          </td>
-          <td class="py-3">
-            <button onclick="viewSnapshot('${order.id}')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs">
-              مشاهده Snapshot
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function changeOrderStatus(orderId, newStatus) {
-      const order = state.orders.find(o => o.id === orderId);
-      if (order) {
-        order.status = newStatus;
-        showAlert(`وضعیت سفارش ${orderId} با موفقیت به «${newStatus}» انتقال یافت (اعمال State Machine).`, 'success');
-        renderOrders();
-      }
-    }
-
-    function viewSnapshot(orderId) {
-      const order = state.orders.find(o => o.id === orderId);
-      if (order) {
-        alert("اسنپ‌شات قطعی و تغییرناپذیر سفارش:\n\n" + JSON.stringify(order.snapshot, null, 2));
-      }
-    }
-
-    function switchTab(tab) {
-      ['pricing', 'rules', 'simulator', 'orders', 'system'].forEach(t => {
-        document.getElementById(`tab-${t}`).classList.add('hidden');
-        document.getElementById(`tab-btn-${t}`).classList.remove('bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/30');
-      });
-      document.getElementById(`tab-${tab}`).classList.remove('hidden');
-      document.getElementById(`tab-btn-${tab}`).classList.add('bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/30');
-    }
-
-    function showAlert(msg, type = 'info') {
-      const banner = document.getElementById('alert-banner');
-      const text = document.getElementById('alert-text');
-      banner.className = `p-4 rounded-xl border text-sm flex items-center justify-between ${type === 'success' ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300' : 'bg-blue-950/80 border-blue-500/40 text-blue-300'}`;
-      text.innerText = msg;
-      banner.classList.remove('hidden');
-      setTimeout(hideAlert, 6000);
-    }
-
-    function hideAlert() {
-      document.getElementById('alert-banner').classList.add('hidden');
-    }
-
-    function refreshData() {
-      showAlert('داده‌های زنده از پایگاه‌داده MySQL و سرور بازخوانی شدند.', 'info');
-      renderCatalog();
-      renderRules();
-      renderOrders();
-      runSimulation();
-    }
-
-    // Initialize UI
-    renderCatalog();
-    renderRules();
-    renderOrders();
-    runSimulation();
-  </script>
+  <script src="/assets/js/common.js"></script>
+  <script src="/assets/js/admin.js"></script>
 </body>
 </html>

@@ -61,11 +61,14 @@ if (-not (Test-Path "IIS:\Sites\$SiteName")) {
     Set-ItemProperty "IIS:\Sites\$SiteName" -Name applicationPool -Value $pool
 }
 
-Step "Adding PHP handler mapping for the site"
-$handlers = & $appcmd list config "$SiteName" -section:system.webServer/handlers
-if ($handlers -notmatch "PHP_via_FastCGI_Terrarium") {
-    & $appcmd set config "$SiteName" -section:system.webServer/handlers /+"[name='PHP_via_FastCGI_Terrarium',path='*.php',verb='GET,HEAD,POST',modules='FastCgiModule',scriptProcessor='$phpCgi',resourceType='Either']" | Out-Null
-}
+Step "Pointing web.config PHP handler to $phpCgi"
+# The handler lives in public\web.config (same pattern as other PHP sites on IIS).
+$webConfig = Join-Path $publicDir "web.config"
+$xml = [xml](Get-Content $webConfig -Raw -Encoding UTF8)
+$h = $xml.configuration.'system.webServer'.handlers.add | Where-Object { $_.name -eq "PHP_via_FastCGI" }
+if ($h -and $h.scriptProcessor -ne $phpCgi) { $h.scriptProcessor = $phpCgi; $xml.Save($webConfig) }
+# Remove the site-level handler older versions of this script added
+& $appcmd set config "$SiteName" -section:system.webServer/handlers /-"[name='PHP_via_FastCGI_Terrarium']" 2>$null | Out-Null
 
 Step "Setting folder permissions"
 # App pool identity: read on the whole app, modify on storage (logs, sqlite)
@@ -97,7 +100,18 @@ Register-ScheduledTask -TaskName "$SiteName Cleanup" -Action $action -Trigger $t
 
 Step "Restarting site"
 Restart-WebAppPool -Name $pool
-Start-Website -Name $SiteName -ErrorAction SilentlyContinue
+try {
+    Start-Website -Name $SiteName
+} catch {
+    Write-Host "  Could not start the site: another IIS site uses the same binding:" -ForegroundColor Yellow
+    $mine = (Get-WebBinding -Name $SiteName | ForEach-Object { $_.bindingInformation })
+    Get-Website | Where-Object { $_.Name -ne $SiteName } | ForEach-Object {
+        $site = $_
+        $site.bindings.Collection | Where-Object { $mine -contains $_.bindingInformation } |
+            ForEach-Object { Write-Host "    '$($site.name)' -> $($_.protocol) $($_.bindingInformation)" -ForegroundColor Yellow }
+    }
+    Write-Host "  Stop that site (Stop-Website -Name '...') or use another -HostName, then: Start-Website -Name $SiteName" -ForegroundColor Yellow
+}
 
 Step "Environment check"
 & $phpExe (Join-Path $AppRoot "bin\console") check

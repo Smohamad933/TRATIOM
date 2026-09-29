@@ -372,6 +372,15 @@
       });
     }
 
+    function openNewRuleModal() {
+      const type = prompt('نوع قانون (مثلاً CLOSED_ECOSYSTEM):');
+      if (!type || !type.trim()) return;
+      const desc = prompt('توضیح قانون:') || '';
+      state.rules.push({ id: 'r' + Date.now(), type: type.trim().toUpperCase(), desc: desc.trim(), status: 'ACTIVE' });
+      renderRules();
+      showAlert(`قانون «${type.trim().toUpperCase()}» اضافه شد.`, 'success');
+    }
+
     function toggleRule(idx) {
       state.rules[idx].status = state.rules[idx].status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
       showAlert(`وضعیت قانون «${state.rules[idx].type}» تغییر یافت.`, 'info');

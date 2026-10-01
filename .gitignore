@@ -5,3 +5,4 @@
 .idea/
 .vscode/
 /storage/database/*.sqlite*
+/storage/installed.lock

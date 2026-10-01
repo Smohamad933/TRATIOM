@@ -63,10 +63,12 @@ if (-not (Test-Path "IIS:\Sites\$SiteName")) {
 
 Step "Pointing web.config PHP handler to $phpCgi"
 # The handler lives in public\web.config (same pattern as other PHP sites on IIS).
-$webConfig = Join-Path $publicDir "web.config"
-$xml = [xml](Get-Content $webConfig -Raw -Encoding UTF8)
-$h = $xml.configuration.'system.webServer'.handlers.add | Where-Object { $_.name -eq "PHP_via_FastCGI" }
-if ($h -and $h.scriptProcessor -ne $phpCgi) { $h.scriptProcessor = $phpCgi; $xml.Save($webConfig) }
+foreach ($webConfig in @((Join-Path $publicDir "web.config"), (Join-Path $AppRoot "web.config"))) {
+    if (-not (Test-Path $webConfig)) { continue }
+    $xml = [xml](Get-Content $webConfig -Raw -Encoding UTF8)
+    $h = $xml.configuration.'system.webServer'.handlers.add | Where-Object { $_.name -eq "PHP_via_FastCGI" }
+    if ($h -and $h.scriptProcessor -ne $phpCgi) { $h.scriptProcessor = $phpCgi; $xml.Save($webConfig) }
+}
 # Remove the site-level handler older versions of this script added
 & $appcmd set config "$SiteName" -section:system.webServer/handlers /-"[name='PHP_via_FastCGI_Terrarium']" 2>$null | Out-Null
 

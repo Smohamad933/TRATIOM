@@ -93,7 +93,7 @@ small, .muted { color: var(--muted); }
 /* forms */
 label.field { display: block; }
 label.field > span { display: block; font-size: .85rem; font-weight: 700; margin-bottom: 4px; color: var(--muted); }
-input[type=text], input[type=tel], input[type=number], input[type=search], select, textarea {
+input:not([type]), input[type=password], input[type=url], input[type=text], input[type=tel], input[type=number], input[type=search], select, textarea {
   width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px;
   background: #fff; font: inherit; color: var(--text);
 }

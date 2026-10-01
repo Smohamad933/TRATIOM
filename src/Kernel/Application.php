@@ -127,6 +127,12 @@ final class Application
                 $this->get(CatalogRepository::class),
                 $this->get(Logger::class)
             ),
+            \Terrarium\Infrastructure\Persistence\Repositories\PresetRepository::class => new \Terrarium\Infrastructure\Persistence\Repositories\PresetRepository($this->get(Database::class)),
+            \Terrarium\Application\UseCases\Admin\PresetService::class => new \Terrarium\Application\UseCases\Admin\PresetService(
+                $this->get(\Terrarium\Infrastructure\Persistence\Repositories\PresetRepository::class),
+                $this->get(\Terrarium\Application\UseCases\Configurator\ValidateConfigurationUseCase::class),
+                $this->basePath . '/public/uploads'
+            ),
             AdminService::class => new AdminService(
                 $this->get(Database::class),
                 $this->get(CatalogRepository::class),

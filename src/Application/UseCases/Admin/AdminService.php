@@ -275,13 +275,25 @@ final class AdminService
                 if ($v !== null && mb_strlen($v) > 150) {
                     throw new ValidationException("مقدار {$f} بیش از حد طولانی است.", ['field' => $f]);
                 }
-                if ($f === 'scientific_name' && $v === '') {
+                if (($f === 'scientific_name' || $f === 'image_url') && $v === '') {
                     $v = null;
+                }
+                if ($f === 'image_url' && $v !== null) {
+                    $v = self::safeImageUrl($v);
                 }
             }
             $out[$f] = $v;
         }
         return $out;
+    }
+
+    /** Only local images (uploaded or bundled) — never arbitrary URLs/javascript:. */
+    public static function safeImageUrl(string $v): string
+    {
+        if (!preg_match('#^/(uploads|assets/img)/[A-Za-z0-9/_.-]+\.(jpe?g|png|webp)$#i', $v) || str_contains($v, '..')) {
+            throw new ValidationException('آدرس تصویر نامعتبر است.', ['field' => 'image_url']);
+        }
+        return $v;
     }
 
     /** @param array<string, mixed> $data */

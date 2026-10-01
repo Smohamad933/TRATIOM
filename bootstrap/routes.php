@@ -65,6 +65,11 @@ return static function (Application $app): Router {
     $r->get('/api/v1/admin/catalog', [$adm, 'catalog'], $admin);
     $r->post('/api/v1/admin/catalog/{type}', [$adm, 'createItem'], $admin);
     $r->post('/api/v1/admin/catalog/{type}/{id}', [$adm, 'updateItem'], $admin);
+    $r->get('/api/v1/admin/presets', [$adm, 'presets'], $admin);
+    $r->post('/api/v1/admin/presets', [$adm, 'createPreset'], $admin);
+    $r->post('/api/v1/admin/presets/{id}', [$adm, 'updatePreset'], $admin);
+    $r->post('/api/v1/admin/presets/{id}/delete', [$adm, 'deletePreset'], $admin);
+    $r->post('/api/v1/admin/upload', [$adm, 'upload'], $admin);
     $r->get('/api/v1/admin/rules', [$adm, 'rules'], $admin);
     $r->post('/api/v1/admin/rules', [$adm, 'createRule'], $admin);
     $r->post('/api/v1/admin/rules/{id}/toggle', [$adm, 'toggleRule'], $admin);

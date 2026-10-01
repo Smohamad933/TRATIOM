@@ -30,6 +30,15 @@ final class AdminController
     public function catalog(Request $r): Response { return $this->ok($this->svc()->catalog()); }
     public function createItem(Request $r): Response { return $this->ok($this->svc()->createItem($r->params['type'], $r->body), 201); }
     public function updateItem(Request $r): Response { return $this->ok($this->svc()->updateItem($r->params['type'], $r->params['id'], $r->body)); }
+    private function presetSvc(): \Terrarium\Application\UseCases\Admin\PresetService
+    {
+        return $this->app->get(\Terrarium\Application\UseCases\Admin\PresetService::class);
+    }
+    public function presets(Request $r): Response { return $this->ok($this->app->get(\Terrarium\Infrastructure\Persistence\Repositories\PresetRepository::class)->list(false)); }
+    public function createPreset(Request $r): Response { return $this->ok($this->presetSvc()->save(null, $r->body), 201); }
+    public function updatePreset(Request $r): Response { return $this->ok($this->presetSvc()->save($r->params['id'], $r->body)); }
+    public function deletePreset(Request $r): Response { $this->presetSvc()->delete($r->params['id']); return $this->ok(['deleted' => true]); }
+    public function upload(Request $r): Response { return $this->ok(['url' => $this->presetSvc()->upload((string) $r->input('image', ''))], 201); }
     public function rules(Request $r): Response { return $this->ok($this->svc()->rules()); }
     public function createRule(Request $r): Response { return $this->ok($this->svc()->createRule($r->body), 201); }
 

@@ -28,10 +28,10 @@ final class CatalogRepository
 
     /** Writable columns per component type (besides id/timestamps). */
     public const FIELDS = [
-        'glass_size' => ['name', 'code', 'total_volume_ml', 'usable_volume_ml', 'max_plant_capacity', 'is_closed_ecosystem', 'price_cents', 'stock_quantity', 'is_active'],
-        'plant' => ['name', 'scientific_name', 'volume_occupancy_ml', 'light_level', 'moisture_level', 'tolerates_closed_glass', 'price_cents', 'stock_quantity', 'is_active'],
-        'stone' => ['name', 'type', 'volume_per_unit_ml', 'price_cents', 'stock_quantity', 'is_active'],
-        'figure' => ['name', 'volume_occupancy_ml', 'price_cents', 'stock_quantity', 'is_active'],
+        'glass_size' => ['name', 'code', 'total_volume_ml', 'usable_volume_ml', 'max_plant_capacity', 'is_closed_ecosystem', 'price_cents', 'stock_quantity', 'is_active', 'image_url'],
+        'plant' => ['name', 'scientific_name', 'volume_occupancy_ml', 'light_level', 'moisture_level', 'tolerates_closed_glass', 'price_cents', 'stock_quantity', 'is_active', 'image_url'],
+        'stone' => ['name', 'type', 'volume_per_unit_ml', 'price_cents', 'stock_quantity', 'is_active', 'image_url'],
+        'figure' => ['name', 'volume_occupancy_ml', 'price_cents', 'stock_quantity', 'is_active', 'image_url'],
     ];
 
     public function __construct(

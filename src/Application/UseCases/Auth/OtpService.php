@@ -83,7 +83,7 @@ final class OtpService
         $this->otps->create($mobile, password_hash($code, PASSWORD_DEFAULT), $expiresAt, $ip);
 
         if (!$this->sms->sendOtp($mobile, $code)) {
-            throw new RuntimeException('ارسال پیامک با خطا مواجه شد. لطفاً چند دقیقه دیگر تلاش کنید.');
+            throw new RuntimeException('ارسال کد تأیید با خطا مواجه شد. لطفاً چند دقیقه دیگر تلاش کنید.');
         }
 
         $out = ['expires_in' => $o['expiry_minutes'] * 60, 'resend_in' => $o['resend_cooldown_seconds']];

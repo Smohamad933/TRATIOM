@@ -58,11 +58,9 @@ class HttpClient
         $response = curl_exec($ch);
         if ($response === false) {
             $error = curl_error($ch);
-            curl_close($ch);
             throw new RuntimeException("HTTP request to {$url} failed: {$error}");
         }
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        curl_close($ch);
 
         return ['status' => $status, 'body' => (string) $response, 'json' => json_decode((string) $response, true)];
     }

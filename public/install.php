@@ -405,7 +405,7 @@ $sel = fn (string $k, string $v) => $in[$k] === $v ? 'selected' : '';
         <label class="full">توکن ربات (از @botfather در بله) <input name="bale_token" dir="ltr" placeholder="123456789:AbCd..." value="<?= h($in['bale_token']) ?>"></label>
         <label>کلید API سفیر (ارسال پیام بدون استارت) <input name="bale_safir" dir="ltr" value="<?= h($in['bale_safir']) ?>"></label>
         <label>توکن کیف پول (پرداخت) <input name="bale_wallet" dir="ltr" placeholder="WALLET-..." value="<?= h($in['bale_wallet']) ?>"></label>
-        <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="bale_otp" style="width:auto" <?= $in['bale_otp'] ? 'checked' : '' ?>> کد ورود در بله ارسال شود (اگر کاربر بله نداشت، پیامک)</label>
+        <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="bale_otp" style="width:auto" <?= $in['bale_otp'] ? 'checked' : '' ?>> کد ورود فقط از طریق ربات بله ارسال شود (بدون پیامک)</label>
         <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="bale_pay" style="width:auto" <?= $in['bale_pay'] ? 'checked' : '' ?>> پرداخت با کیف پول بله هم فعال باشد</label>
       </div>
     </fieldset>

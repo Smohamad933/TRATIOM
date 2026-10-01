@@ -161,13 +161,11 @@ final class Application
 
     private function buildSms(): SmsServiceInterface
     {
-        $sms = $this->buildSmsProvider();
         if ($this->config->get('bale.otp_enabled') && $this->get(SafirClient::class)->isConfigured()) {
-            // Code goes to the user's Bale (no /start needed); SMS is used only if that fails.
-            // With SMS_DEFAULT_PROVIDER=log there is no real fallback, so only the Bale message is sent.
-            return new BaleOtpService($this->get(SafirClient::class), $sms, $this->get(Logger::class));
+            // Login code only through the Bale bot (Safir), no SMS.
+            return new BaleOtpService($this->get(SafirClient::class), $this->get(Logger::class));
         }
-        return $sms;
+        return $this->buildSmsProvider();
     }
 
     private function buildSmsProvider(): SmsServiceInterface

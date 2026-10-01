@@ -258,7 +258,7 @@
     for (const [pid, q] of Object.entries(cart.plants || {})) {
       const p = P[pid]; if (!p || q < 1) continue;
       const kind = plantKind(p);
-      const s = clamp(Math.sqrt((p.volume_occupancy_ml || 250) / 250), 0.65, 1.3);
+      const s = clamp(Math.sqrt((p.volume_occupancy_ml || 250) / 250), 0.75, 1.3) * (kind === 'moss' ? 1.3 : 1.6);
       for (let i = 0; i < Math.min(q, 6); i++) items.push({ kind, s, back: kind === 'fern' || kind === 'cactus' });
     }
     const figs = [];
@@ -275,7 +275,7 @@
     let figSvg = '';
     figs.forEach((fg, i) => {
       const x = x0 + 24 + ((x1 - x0 - 48) * (i + 0.5)) / figs.length + (rand() - 0.5) * 16;
-      figSvg += drawFigure(fg, x, ground + 6, 1);
+      figSvg += drawFigure(fg, x, ground + 6, 1.35);
     });
 
     // closed glass: condensation + cork lid

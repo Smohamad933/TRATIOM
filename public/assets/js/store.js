@@ -80,7 +80,7 @@
         </div>
       </article>`;
     }).join('') + `<article class="preset scratch">
-        <div class="ph">🧪</div>
+        <div class="ph"><svg viewBox="0 0 120 120" width="55%"><rect x="34" y="14" width="52" height="12" rx="4" fill="#c79a63"/><path d="M36 26h48v70a10 10 0 0 1-10 10H46a10 10 0 0 1-10-10z" fill="#ffffff" fill-opacity=".7" stroke="#9fc5bf" stroke-width="3"/><path d="M60 50v28M46 64h28" stroke="#2f8a4a" stroke-width="6" stroke-linecap="round"/></svg></div>
         <div class="body"><b>ساخت از صفر</b><div class="desc">ظرف، گیاه، بستر و تزئینات را خودت انتخاب کن.</div>
           <div class="actions" style="grid-template-columns:1fr"><button class="btn sm" data-scratch>✨ شروع ساخت</button></div></div>
       </article>`;
@@ -131,8 +131,15 @@
 
   // ------------------------------------------------------------------ final preview (before checkout)
 
-  function itemThumb(x, emoji) {
-    return x && x.image_url ? `<img src="${esc(x.image_url)}" alt="" loading="lazy">` : `<span class="ic">${emoji}</span>`;
+  // small vector icons (emoji fonts are missing on some systems)
+  const ICON = {
+    glass: '<svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="3" width="12" height="3" rx="1" fill="#c79a63"/><path d="M6.5 6h11v13a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2z" fill="#e3f3f0" stroke="#7fb3ab"/><path d="M7 16h10v3a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 19z" fill="#5a3d2b"/></svg>',
+    plant: '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 21V11" stroke="#2f7d3a" stroke-width="1.6"/><path d="M12 12C7 12 5 8 5 5c4 0 7 2 7 7zM12 14c0-5 3-8 7-8 0 4-2 8-7 8z" fill="#4fa04a"/></svg>',
+    stone: '<svg viewBox="0 0 24 24" width="24" height="24"><ellipse cx="9" cy="15" rx="6" ry="4" fill="#5b5e66"/><ellipse cx="16" cy="16" rx="5" ry="3.4" fill="#8a8d94"/><ellipse cx="12" cy="11" rx="4" ry="3" fill="#3b3d42"/></svg>',
+    figure: '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 3l2.4 5.6 6 .5-4.6 4 1.4 5.9L12 16l-5.2 3 1.4-5.9-4.6-4 6-.5z" fill="#e9c46a"/></svg>',
+  };
+  function itemThumb(x, kind) {
+    return x && x.image_url ? `<img src="${esc(x.image_url)}" alt="" loading="lazy">` : `<span class="ic">${ICON[kind] || ''}</span>`;
   }
 
   function openFinal() {
@@ -151,13 +158,14 @@
     };
     if (showPhoto) { $('#final-photo').src = p.image_url; $('#final-photo').alt = p.name; setView('photo'); }
     else setView('render');
-    $('#final-note').textContent = showPhoto
-      ? `عکس نمونه «${p.name}». هر تراریوم دست‌ساز است و ممکن است کمی با عکس فرق داشته باشد.`
-      : 'تصویر بالا پیش‌نمایش طراحی‌شده از ترکیب انتخابی شماست؛ چیدمان واقعی دست‌ساز است.';
+    const note = $('#final-note');
+    note.dataset.render = 'تصویر بالا پیش‌نمایش طراحی‌شده از ترکیب انتخابی شماست؛ چیدمان واقعی دست‌ساز است.';
+    note.dataset.photo = showPhoto ? `عکس نمونه «${p.name}». هر تراریوم دست‌ساز است و ممکن است کمی با عکس فرق داشته باشد.` : '';
+    note.textContent = showPhoto ? note.dataset.photo : note.dataset.render;
     const find = (arr, id) => (arr || []).find((x) => x.id === id);
     const glass = find(c.glass_sizes, state.cart.glass);
-    let rows = `<div class="final-item">${itemThumb(glass, '🫙')}<span class="nm">${esc(glass.name)}</span><span>${toman(glass.price_cents)}</span></div>`;
-    for (const [k, arr, emo] of [['plants', c.plants, '🪴'], ['stones', c.stones, '🪨'], ['figures', c.figures, '✨']]) {
+    let rows = `<div class="final-item">${itemThumb(glass, 'glass')}<span class="nm">${esc(glass.name)}</span><span>${toman(glass.price_cents)}</span></div>`;
+    for (const [k, arr, emo] of [['plants', c.plants, 'plant'], ['stones', c.stones, 'stone'], ['figures', c.figures, 'figure']]) {
       for (const [id, q] of Object.entries(state.cart[k])) {
         const x = find(arr, id); if (!x || q < 1) continue;
         rows += `<div class="final-item">${itemThumb(x, emo)}<span class="nm">${esc(x.name)} × ${num(q)}</span><span>${toman(x.price_cents * q)}</span></div>`;
@@ -185,6 +193,7 @@
         $('#final-render').classList.toggle('hidden', tab.dataset.view !== 'render');
         $('#final-photo').classList.toggle('hidden', tab.dataset.view !== 'photo');
         document.querySelectorAll('#final-tabs .tab').forEach((t) => t.classList.toggle('active', t === tab));
+        $('#final-note').textContent = $('#final-note').dataset[tab.dataset.view] || '';
       }
     });
     $('#btn-final-ok').addEventListener('click', () => {

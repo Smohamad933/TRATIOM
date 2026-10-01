@@ -225,8 +225,8 @@
         <thead><tr><th>عکس</th><th>عنوان</th><th>مشخصات</th><th>قیمت (ریال)</th><th>موجودی</th><th>فعال</th><th></th></tr></thead>
         <tbody>${rows.map((x) => `<tr data-id="${esc(x.id)}">
           <td><div class="img-cell">${x.image_url ? `<img src="${esc(x.image_url)}" alt="">` : '<span class="muted">—</span>'}
-            <label class="btn ghost sm" title="آپلود عکس">📷<input type="file" accept="image/jpeg,image/png,image/webp" data-img hidden></label>
-            ${x.image_url ? '<button class="btn ghost sm" data-img-del title="حذف عکس">🗑</button>' : ''}</div></td>
+            <label class="btn ghost sm" title="آپلود عکس">عکس<input type="file" accept="image/jpeg,image/png,image/webp" data-img hidden></label>
+            ${x.image_url ? '<button class="btn ghost sm" data-img-del title="حذف عکس">حذف</button>' : ''}</div></td>
           <td><b>${esc(x.name)}</b>${x.code ? `<div class="mono muted">${esc(x.code)}</div>` : ''}</td>
           <td class="muted">${extra(x)}</td>
           <td><input type="number" min="0" step="1000" name="price_cents" value="${x.price_cents}"><div class="muted" style="font-size:.75rem">${toman(x.price_cents)}</div></td>

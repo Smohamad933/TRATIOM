@@ -48,6 +48,17 @@
         bottom: 392, top: 116,
       };
     }
+    if (/RECT|مستطیل|مکعب|BOX/.test(key)) {
+      return {
+        kind: 'rect', closed,
+        clip: '<rect x="44" y="176" width="312" height="218" rx="4"/>',
+        outline: '<rect x="40" y="172" width="320" height="226" rx="5" fill="none" stroke="#8fc3b6" stroke-width="5"/>' +
+                 '<path d="M40 172 L70 148 L390 148 L360 172 M390 148 L390 372 L360 398" fill="#e8f4f2" fill-opacity=".25" stroke="#8fc3b6" stroke-width="4" stroke-linejoin="round"/>',
+        highlight: '<path d="M58 196 L58 360" stroke="#fff" stroke-opacity=".75" stroke-width="7" stroke-linecap="round"/>',
+        xRange: () => [54, 346],
+        bottom: 394, top: 180,
+      };
+    }
     // cylinder (default)
     return {
       kind: 'cylinder', closed,

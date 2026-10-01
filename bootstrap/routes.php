@@ -47,6 +47,7 @@ return static function (Application $app): Router {
 
     // Orders
     $r->post('/api/v1/orders', [$orders, 'store'], $auth);
+    $r->post('/api/v1/discounts/check', [$orders, 'checkDiscount'], $auth);
     $r->get('/api/v1/orders', [$orders, 'index'], $auth);
     $r->get('/api/v1/orders/{id}', [$orders, 'show'], $auth);
     $r->post('/api/v1/orders/{id}/pay', [$orders, 'pay'], $auth);
@@ -70,6 +71,10 @@ return static function (Application $app): Router {
     $r->post('/api/v1/admin/presets/{id}', [$adm, 'updatePreset'], $admin);
     $r->post('/api/v1/admin/presets/{id}/delete', [$adm, 'deletePreset'], $admin);
     $r->post('/api/v1/admin/upload', [$adm, 'upload'], $admin);
+    $r->get('/api/v1/admin/discounts', [$adm, 'discounts'], $admin);
+    $r->post('/api/v1/admin/discounts', [$adm, 'createDiscount'], $admin);
+    $r->post('/api/v1/admin/discounts/{id}', [$adm, 'updateDiscount'], $admin);
+    $r->post('/api/v1/admin/discounts/{id}/delete', [$adm, 'deleteDiscount'], $admin);
     $r->get('/api/v1/admin/font', [$adm, 'font'], $admin);
     $r->post('/api/v1/admin/font', [$adm, 'uploadFont'], $admin);
     $r->post('/api/v1/admin/font/delete', [$adm, 'deleteFont'], $admin);

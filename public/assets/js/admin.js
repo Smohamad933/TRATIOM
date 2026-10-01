@@ -114,7 +114,7 @@
     currentTab = tab;
     document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     content().innerHTML = '<p class="muted">در حال بارگذاری…</p>';
-    ({ dashboard, orders, presets, catalog, appearance, rules, system }[tab])().catch((e) => {
+    ({ dashboard, orders, presets, catalog, discounts, appearance, rules, system }[tab])().catch((e) => {
       content().innerHTML = `<div class="alert err">${esc(e.message)}</div>`;
     });
   }
@@ -184,6 +184,7 @@
       ${snap.glass_size ? `<div class="summary-line"><span>🫙 ${esc(snap.glass_size.name)}</span><span>${toman(snap.glass_size.price_cents)}</span></div>` : ''}
       ${lines(snap.plants)}${lines(snap.stones)}${lines(snap.figures)}
       <div class="summary-line"><span>ارسال</span><span>${toman(o.shipping_cents)}</span></div>
+      ${Number(o.discount_cents) ? `<div class="summary-line discount-line"><span>🏷️ تخفیف${o.discount_code ? ' (<span class="mono">' + esc(o.discount_code) + '</span>)' : ''}</span><span>− ${toman(o.discount_cents)}</span></div>` : ''}
       <div class="summary-total"><span>جمع</span><span>${toman(o.total_price_cents)}</span></div>
       <h3 class="mt">ارسال</h3>
       <p>${esc(o.recipient_name)} — <span class="ltr">${esc(o.recipient_phone)}</span> (حساب: <span class="ltr">${esc(o.user_mobile || '')}</span>)<br>${esc(o.shipping_address)}${o.postal_code ? '<br>کد پستی: ' + esc(o.postal_code) : ''}${o.customer_note ? '<br><b>توضیحات:</b> ' + esc(o.customer_note) : ''}</p>
@@ -212,7 +213,8 @@
   function renderCatalog() {
     const rows = catalogCache[catalogType] || [];
     const extra = {
-      glass_size: (x) => `${num(x.usable_volume_ml)} ml · ${num(x.max_plant_capacity)} گیاه · ${x.is_closed_ecosystem ? 'دربسته' : 'درباز'}`,
+      glass_size: (x) => `${num(x.usable_volume_ml)} ml · ${num(x.max_plant_capacity)} گیاه · ${x.is_closed_ecosystem ? 'دربسته' : 'درباز'}
+        <div class="row gap-sm" style="margin-top:4px"><span class="badge ${x.height_cm ? 'ok' : 'warn'}">📏 ${x.height_cm ? `${num(Number(x.width_cm || 0))}×${num(Number(x.depth_cm || 0))}×${num(Number(x.height_cm))} cm` : 'ابعاد ثبت نشده'}</span><button class="btn ghost sm" data-dims>ویرایش ابعاد</button></div>`,
       plant: (x) => `${num(x.volume_occupancy_ml)} ml · ${LEVEL.light[x.light_level]} · ${LEVEL.moisture[x.moisture_level]}${x.tolerates_closed_glass ? '' : ' · فقط درباز'}`,
       stone: (x) => `${num(x.volume_per_unit_ml)} ml/واحد`,
       figure: (x) => `${num(x.volume_occupancy_ml)} ml`,
@@ -272,6 +274,110 @@
       try { await setImage(b.closest('tr'), ''); } catch (e) { toast(e.message, 'err'); }
     });
     $('#btn-new-item').onclick = newItemModal;
+    content().querySelectorAll('[data-dims]').forEach((b) => b.onclick = () => {
+      const tr = b.closest('tr');
+      const x = (catalogCache[catalogType] || []).find((i) => i.id === tr.dataset.id);
+      modal(`
+        <div class="row between"><h2>ابعاد «${esc(x.name)}»</h2><button class="btn ghost sm" data-close>✕</button></div>
+        <form class="stack" id="dims-form">
+          <div class="grid grid-3">
+            <label class="field"><span>عرض / قطر (cm)</span><input type="number" name="width_cm" min="0" step="0.5" value="${x.width_cm ?? ''}"></label>
+            <label class="field"><span>عمق (cm)</span><input type="number" name="depth_cm" min="0" step="0.5" value="${x.depth_cm ?? ''}"></label>
+            <label class="field"><span>ارتفاع (cm)</span><input type="number" name="height_cm" min="0" step="0.5" value="${x.height_cm ?? ''}"></label>
+          </div>
+          <p class="muted" style="font-size:.8rem">در فروشگاه زیر نام ظرف نمایش داده می‌شود. برای ظرف گرد، عرض و عمق را برابر (قطر) بگذارید.</p>
+          <button class="btn primary">ذخیره</button>
+        </form>`, (el, close) => {
+        el.querySelector('form').onsubmit = async (e) => {
+          e.preventDefault();
+          const f = e.target;
+          try {
+            const updated = await api(`/api/v1/admin/catalog/${catalogType}/${encodeURIComponent(x.id)}`, { method: 'POST', body: { width_cm: f.width_cm.value, depth_cm: f.depth_cm.value, height_cm: f.height_cm.value } });
+            const list = catalogCache[catalogType]; list[list.findIndex((i) => i.id === updated.id)] = updated;
+            close(); toast('ابعاد ذخیره شد.'); renderCatalog();
+          } catch (err) { toast(err.message, 'err'); }
+        };
+      });
+    });
+  }
+
+  // ---- discount codes
+  async function discounts() {
+    const list = await api('/api/v1/admin/discounts');
+    const fmtVal = (d) => d.type === 'percent' ? `${num(d.value)}٪${d.max_discount_cents ? ' (سقف ' + toman(d.max_discount_cents) + ')' : ''}` : toman(d.value);
+    const state = (d) => {
+      const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      if (!d.is_active) return '<span class="badge">غیرفعال</span>';
+      if (d.expires_at && now > d.expires_at) return '<span class="badge err">منقضی</span>';
+      if (d.starts_at && now < d.starts_at) return '<span class="badge info">شروع نشده</span>';
+      if (d.max_uses !== null && d.used_count >= d.max_uses) return '<span class="badge warn">تمام شده</span>';
+      return '<span class="badge ok">فعال</span>';
+    };
+    content().innerHTML = `
+      <div class="row between wrap gap mb"><h2 style="margin:0">کدهای تخفیف</h2><button class="btn primary sm" id="btn-new-disc">+ کد تخفیف جدید</button></div>
+      <div class="card"><div class="table-wrap"><table class="table">
+        <thead><tr><th>کد</th><th>تخفیف</th><th>استفاده</th><th>محدودیت‌ها</th><th>اعتبار</th><th>وضعیت</th><th></th></tr></thead>
+        <tbody>${list.map((d) => `<tr data-id="${esc(d.id)}">
+          <td><b class="mono">${esc(d.code)}</b>${d.note ? `<div class="muted" style="font-size:.78rem">${esc(d.note)}</div>` : ''}</td>
+          <td>${fmtVal(d)}</td>
+          <td><b>${num(d.used_count)}</b> / ${d.max_uses === null ? '∞' : num(d.max_uses)}${d.paid_discount_cents ? `<div class="muted" style="font-size:.75rem">${toman(d.paid_discount_cents)} تخفیف پرداخت‌شده</div>` : ''}</td>
+          <td style="font-size:.8rem">${d.per_user_limit ? `هر حساب ${num(d.per_user_limit)} بار` : 'بدون محدودیت حساب'}${d.allowed_mobiles.length ? `<br>فقط ${num(d.allowed_mobiles.length)} حساب مشخص` : ''}${d.min_order_cents ? `<br>حداقل خرید ${toman(d.min_order_cents)}` : ''}</td>
+          <td style="font-size:.8rem">${d.starts_at_local ? 'از ' + esc(d.starts_at_local.replace('T', ' ')) : ''}${d.expires_at_local ? '<br>تا ' + esc(d.expires_at_local.replace('T', ' ')) : (d.starts_at_local ? '' : 'نامحدود')}</td>
+          <td>${state(d)}</td>
+          <td class="row gap-sm"><button class="btn sm" data-edit>ویرایش</button><button class="btn ghost sm" data-del>حذف</button></td>
+        </tr>`).join('') || '<tr><td colspan="7" class="muted">هنوز کد تخفیفی نساخته‌اید.</td></tr>'}</tbody>
+      </table></div></div>`;
+    $('#btn-new-disc').onclick = () => discountModal(null);
+    content().querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => discountModal(list.find((d) => d.id === b.closest('tr').dataset.id)));
+    content().querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
+      if (!confirm('این کد تخفیف حذف شود؟ (اگر استفاده شده باشد فقط غیرفعال می‌شود)')) return;
+      try { const r = await api(`/api/v1/admin/discounts/${encodeURIComponent(b.closest('tr').dataset.id)}/delete`, { method: 'POST' }); toast(r.result === 'deleted' ? 'حذف شد.' : 'چون استفاده شده بود، غیرفعال شد.'); discounts(); }
+      catch (e) { toast(e.message, 'err'); }
+    });
+  }
+
+  function discountModal(d) {
+    const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
+    modal(`
+      <div class="row between"><h2>${d ? 'ویرایش کد تخفیف' : 'کد تخفیف جدید'}</h2><button class="btn ghost sm" data-close>✕</button></div>
+      <form class="stack" id="disc-form">
+        <label class="field"><span>کد *</span><div class="row gap-sm"><input type="text" name="code" required maxlength="40" class="ltr grow" style="text-transform:uppercase" value="${d ? esc(d.code) : ''}" placeholder="NOWRUZ1405"><button type="button" class="btn sm" id="disc-rand">ساخت تصادفی</button></div></label>
+        <div class="grid grid-2">
+          <label class="field"><span>نوع *</span><select name="type"><option value="percent" ${!d || d.type === 'percent' ? 'selected' : ''}>درصدی (٪)</option><option value="fixed" ${d && d.type === 'fixed' ? 'selected' : ''}>مبلغ ثابت (ریال)</option></select></label>
+          <label class="field"><span id="disc-val-label">مقدار *</span><input type="number" name="value" min="1" required value="${d ? d.value : ''}"><small class="muted" id="disc-val-hint"></small></label>
+          <label class="field" id="disc-cap"><span>سقف تخفیف (ریال)</span><input type="number" name="max_discount_cents" min="0" step="1000" value="${d && d.max_discount_cents !== null ? d.max_discount_cents : ''}" placeholder="بدون سقف"></label>
+          <label class="field"><span>حداقل مبلغ سفارش (ریال)</span><input type="number" name="min_order_cents" min="0" step="1000" value="${d ? d.min_order_cents || '' : ''}" placeholder="بدون حداقل"></label>
+          <label class="field"><span>تعداد کل دفعات استفاده</span><input type="number" name="max_uses" min="1" value="${d && d.max_uses !== null ? d.max_uses : ''}" placeholder="نامحدود"></label>
+          <label class="field"><span>دفعات مجاز برای هر حساب</span><input type="number" name="per_user_limit" min="1" value="${d && d.per_user_limit !== null ? d.per_user_limit : '1'}" placeholder="نامحدود"></label>
+          <label class="field"><span>شروع اعتبار</span><input type="datetime-local" name="starts_at" value="${d && d.starts_at_local ? d.starts_at_local : ''}"></label>
+          <label class="field"><span>پایان اعتبار</span><input type="datetime-local" name="expires_at" value="${d && d.expires_at_local ? d.expires_at_local : ''}"></label>
+        </div>
+        <label class="field"><span>حساب‌های مجاز (اختیاری)</span><textarea name="allowed_mobiles" class="ltr" style="min-height:70px" placeholder="09121234567, 09351234567">${d ? esc(d.allowed_mobiles.join('\n')) : ''}</textarea><small class="muted">اگر خالی باشد همه می‌توانند استفاده کنند. شماره‌ها را با ویرگول یا خط جدید جدا کنید.</small></label>
+        <label class="field"><span>یادداشت داخلی</span><input type="text" name="note" maxlength="255" value="${d && d.note ? esc(d.note) : ''}" placeholder="مثلاً کمپین نوروز اینستاگرام"></label>
+        <label class="checkbox"><input type="checkbox" name="is_active" ${!d || d.is_active ? 'checked' : ''}> فعال</label>
+        <div id="disc-err"></div>
+        <button class="btn primary">${d ? 'ذخیره تغییرات' : 'ساخت کد'}</button>
+      </form>`, (el, close) => {
+      const f = el.querySelector('form');
+      const sync = () => {
+        const pct = f.type.value === 'percent';
+        el.querySelector('#disc-cap').classList.toggle('hidden', !pct);
+        el.querySelector('#disc-val-label').textContent = pct ? 'درصد تخفیف (۱ تا ۱۰۰) *' : 'مبلغ تخفیف (ریال) *';
+        f.value.max = pct ? 100 : ''; f.value.step = pct ? 1 : 1000;
+        el.querySelector('#disc-val-hint').textContent = !pct && f.value.value ? '= ' + toman(Number(f.value.value)) : '';
+      };
+      f.type.onchange = sync; f.value.oninput = sync; sync();
+      el.querySelector('#disc-rand').onclick = () => { f.code.value = 'TRM-' + rand(); };
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        const body = {};
+        for (const i of f.elements) if (i.name) body[i.name] = i.type === 'checkbox' ? i.checked : i.value;
+        try {
+          await api('/api/v1/admin/discounts' + (d ? '/' + encodeURIComponent(d.id) : ''), { method: 'POST', body });
+          close(); toast('ذخیره شد.'); discounts();
+        } catch (err) { el.querySelector('#disc-err').innerHTML = `<div class="alert err">${esc(err.message)}</div>`; }
+      };
+    });
   }
 
   // ---- images: resized in the browser (max 1400px JPEG) so uploads stay small and fast
@@ -491,7 +597,13 @@
           <label class="field"><span>حجم مفید (ml) *</span><input type="number" name="usable_volume_ml" min="1" required></label>
           <label class="field"><span>حداکثر تعداد گیاه *</span><input type="number" name="max_plant_capacity" min="1" required></label>
           <label class="checkbox mt"><input type="checkbox" name="is_closed_ecosystem"> دربسته (اکوسیستم بسته)</label>
-        </div>`,
+        </div>
+        <div class="grid grid-3">
+          <label class="field"><span>عرض / قطر (cm)</span><input type="number" name="width_cm" min="0" step="0.5"></label>
+          <label class="field"><span>عمق (cm)</span><input type="number" name="depth_cm" min="0" step="0.5"></label>
+          <label class="field"><span>ارتفاع (cm)</span><input type="number" name="height_cm" min="0" step="0.5"></label>
+        </div>
+        <p class="muted" style="font-size:.8rem">برای ظرف گرد، عرض و عمق را برابر (قطر) وارد کنید. برای پیش‌نمایش ظرف مستطیلی، در کد یکتا «RECT» بیاید (مثلاً RECT-M-OPEN).</p>`,
       plant: `
         <label class="field"><span>نام علمی</span><input type="text" name="scientific_name" maxlength="150" class="ltr" style="width:100%"></label>
         <div class="grid grid-2">

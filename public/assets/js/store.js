@@ -231,6 +231,7 @@
       <div class="option ${state.cart.glass === x.id ? 'selected' : ''} ${x.stock_quantity < 1 ? 'disabled' : ''}" data-glass="${esc(x.id)}" tabindex="0">
         <div class="art">${x.image_url ? `<img src="${esc(x.image_url)}" alt="" loading="lazy">` : window.TerrariumPreview.item('glass', x, c)}</div>
         <div class="name">${esc(x.name)}</div>
+        ${dims(x) ? `<div class="dims">📏 ${dims(x)}</div>` : ''}
         <div class="meta">حجم مفید ${num(x.usable_volume_ml)} میلی‌لیتر · تا ${num(x.max_plant_capacity)} گیاه</div>
         <div class="tags">${x.is_closed_ecosystem ? '<span class="badge info">دربسته (مرطوب)</span>' : '<span class="badge">درباز</span>'}
           ${x.stock_quantity < 1 ? '<span class="badge err">ناموجود</span>' : ''}</div>
@@ -479,12 +480,54 @@
 
   // ------------------------------------------------------------------ checkout
 
+  // container dimensions: "عرض ۳۰ × عمق ۱۸ × ارتفاع ۲۰ سانتی‌متر"
+  function dims(g) {
+    if (!g || !g.height_cm) return '';
+    const n = (v) => num(Number(v));
+    const round = g.width_cm && g.depth_cm && Number(g.width_cm) === Number(g.depth_cm) && !/RECT|مستطیل/i.test((g.code || '') + g.name);
+    return round ? `قطر ${n(g.width_cm)} × ارتفاع ${n(g.height_cm)} سانتی‌متر`
+      : `${g.width_cm ? 'عرض ' + n(g.width_cm) + ' × ' : ''}${g.depth_cm ? 'عمق ' + n(g.depth_cm) + ' × ' : ''}ارتفاع ${n(g.height_cm)} سانتی‌متر`;
+  }
+
+  // ---- discount code (checked live; re-validated by the server when the order is placed)
+  let discount = null;
+  function renderCheckoutSummary() {
+    const v = state.validation;
+    let html = priceLines(v);
+    if (discount) {
+      html = html.replace(/<div class="summary-total">[\s\S]*$/, '') +
+        `<div class="summary-line discount-line"><span>🏷️ کد ${esc(discount.code)} <small>(${esc(discount.label)})</small></span><span>− ${toman(discount.discount_cents)}</span></div>
+         <div class="summary-total"><span>مبلغ قابل پرداخت</span><span>${toman(discount.payable_cents)}</span></div>`;
+    }
+    $('#checkout-summary').innerHTML = html;
+  }
+  async function applyDiscount() {
+    const inp = $('#discount-input'), msg = $('#discount-msg'), btn = $('#discount-apply');
+    const code = inp.value.trim();
+    if (!code) { msg.innerHTML = '<span class="err-text">کد تخفیف را وارد کنید.</span>'; return; }
+    btn.disabled = true; msg.textContent = 'در حال بررسی…';
+    try {
+      discount = await api('/api/v1/discounts/check', { method: 'POST', body: { code, configuration: configurationPayload() } });
+      msg.innerHTML = `<span class="ok-text">✓ ${esc(discount.label)} اعمال شد — ${toman(discount.discount_cents)} صرفه‌جویی</span>`;
+      inp.value = discount.code; inp.readOnly = true;
+      btn.textContent = 'حذف'; btn.dataset.mode = 'remove';
+    } catch (e) {
+      discount = null; msg.innerHTML = `<span class="err-text">${esc(e.message)}</span>`;
+    } finally { btn.disabled = false; renderCheckoutSummary(); }
+  }
+  function removeDiscount() {
+    discount = null;
+    const inp = $('#discount-input'), btn = $('#discount-apply');
+    inp.readOnly = false; inp.value = ''; btn.textContent = 'اعمال'; delete btn.dataset.mode;
+    $('#discount-msg').textContent = ''; renderCheckoutSummary();
+  }
+
   function renderCheckout() {
     const v = state.validation;
     if (!state.cart.glass || !v || !v.is_valid) { location.hash = '#/'; return; }
     if (!auth.token) { location.hash = '#/'; openLogin(() => { location.hash = '#/checkout'; }); return; }
 
-    $('#checkout-summary').innerHTML = priceLines(v);
+    if (discount) removeDiscount(); else renderCheckoutSummary();
     $('#checkout-preview').innerHTML = window.TerrariumPreview.svg(state.cart, state.catalog);
     const gws = (state.catalog && state.catalog.payment_gateways) || [];
     $('#gateway-select').innerHTML = gws.length
@@ -500,6 +543,9 @@
     $('#btn-checkout').addEventListener('click', openFinal);
     $('#mb-go').addEventListener('click', openFinal);
     $('#mb-preview').addEventListener('click', () => $('#summary').scrollIntoView({ behavior: 'smooth', block: 'center' }));
+
+    $('#discount-apply').addEventListener('click', () => ($('#discount-apply').dataset.mode === 'remove' ? removeDiscount() : applyDiscount()));
+    $('#discount-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (!$('#discount-input').readOnly) applyDiscount(); } });
 
     $('#checkout-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -519,6 +565,7 @@
             postal_code: f.postal_code.value,
             customer_note: f.customer_note.value,
             gateway: f.gateway.value,
+            discount_code: discount ? discount.code : '',
           },
         });
         localStorage.removeItem(CART_KEY);
@@ -615,6 +662,7 @@
             ${item.glass_size ? `<div class="summary-line"><span>🫙 ${esc(item.glass_size.name)}</span><span>${toman(item.glass_size.price_cents)}</span></div>` : ''}
             ${lines(item.plants)}${lines(item.stones)}${lines(item.figures)}
             <div class="summary-line"><span>هزینه ارسال</span><span>${o.shipping_cents ? toman(o.shipping_cents) : 'رایگان'}</span></div>
+            ${o.discount_cents ? `<div class="summary-line discount-line"><span>🏷️ تخفیف${o.discount_code ? ' (' + esc(o.discount_code) + ')' : ''}</span><span>− ${toman(o.discount_cents)}</span></div>` : ''}
             <div class="summary-total"><span>جمع کل</span><span>${toman(o.total_price_cents)}</span></div>
             <h3 class="mt-lg">اطلاعات ارسال</h3>
             <p>${esc(o.recipient_name)} — <span class="ltr">${esc(o.recipient_phone)}</span><br>${esc(o.shipping_address)}${o.postal_code ? '<br>کد پستی: ' + esc(o.postal_code) : ''}</p>

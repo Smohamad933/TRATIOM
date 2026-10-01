@@ -32,7 +32,8 @@ final class PlaceOrderService
         private readonly string $appUrl,
         private readonly Logger $logger,
         private readonly CreateOrderUseCase $createOrder = new CreateOrderUseCase(),
-        private readonly InitiatePaymentUseCase $initiate = new InitiatePaymentUseCase()
+        private readonly InitiatePaymentUseCase $initiate = new InitiatePaymentUseCase(),
+        private readonly ?\Terrarium\Application\UseCases\Discount\DiscountService $discounts = null
     ) {}
 
     /**
@@ -40,7 +41,7 @@ final class PlaceOrderService
      * @param array{recipient_name: string, recipient_phone: string, shipping_address: string, postal_code: ?string, customer_note: ?string} $shipping
      * @return array{order_id: string, order_number: string, total_cents: int, payment_url: string}
      */
-    public function place(array $user, ValidateConfigurationInput $input, array $shipping, string $gatewayName): array
+    public function place(array $user, ValidateConfigurationInput $input, array $shipping, string $gatewayName, ?string $discountCode = null): array
     {
         $gateway = ($this->gatewayResolver)($gatewayName);
 
@@ -54,16 +55,36 @@ final class PlaceOrderService
         $snapshot = $configuration->createSnapshot();
         $snapshot['price_breakdown'] = $out['breakdown']->toArray();
 
+        // discount code (re-validated server-side at order time)
+        $discount = null;
+        if ($discountCode !== null && trim($discountCode) !== '' && $this->discounts !== null) {
+            $discount = $this->discounts->evaluate($discountCode, $user, $out['breakdown']->subtotal->amount, $out['breakdown']->shipping->amount);
+            $snapshot['discount'] = ['code' => $discount['code'], 'amount_cents' => $discount['discount_cents'], 'label' => $discount['label']];
+        }
+
         $order = $this->createOrder->execute(
             new CreateOrderInput(userId: (string) $user['id'], configurationId: $configuration->id, paymentGateway: $gatewayName),
             $configuration,
             $out['breakdown']->shipping,
             $snapshot
         );
+        if ($discount !== null && $discount['discount_cents'] > 0) {
+            $cur = $order->totalPrice->currency;
+            $order = new Order(
+                id: $order->id, userId: $order->userId, orderNumber: $order->orderNumber, status: $order->status(),
+                totalPrice: $order->totalPrice->subtract(\Terrarium\Domain\Common\Money::fromCents($discount['discount_cents'], $cur)),
+                discount: \Terrarium\Domain\Common\Money::fromCents($discount['discount_cents'], $cur),
+                shipping: $order->shipping, items: $order->items
+            );
+        }
 
-        $this->db->transaction(function () use ($configuration, $snapshot, $order, $shipping, $gatewayName) {
+        $this->db->transaction(function () use ($configuration, $snapshot, $order, $shipping, $gatewayName, $discount, $user) {
             $this->orders->saveConfiguration($configuration, $snapshot);
             $this->orders->create($order, $shipping, $gatewayName);
+            if ($discount !== null) {
+                $this->db->query('UPDATE orders SET discount_code = :c WHERE id = :id', ['c' => $discount['code'], 'id' => $order->id]);
+                $this->discounts->redeem($discount['id'], (string) $user['id'], $order->id, $discount['discount_cents']);
+            }
         });
 
         $paymentUrl = $this->startPayment($order, $gateway, (string) $user['mobile']);
@@ -72,6 +93,7 @@ final class PlaceOrderService
             'order_id' => $order->id,
             'order_number' => $order->orderNumber,
             'total_cents' => $order->totalPrice->amount,
+            'discount_cents' => $order->discount->amount,
             'payment_url' => $paymentUrl,
         ];
     }

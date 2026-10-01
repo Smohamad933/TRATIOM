@@ -543,3 +543,13 @@ body.has-mobile-bar .site-footer { padding-bottom: 80px; }
 .font-preview { background: var(--surface-2); border-radius: 14px; padding: 16px; display: grid; gap: 8px; line-height: 1.9; }
 .auth-btns { display: inline-flex; gap: 6px; align-items: center; }
 .topbar nav { flex-wrap: nowrap; }
+
+/* discount + dims */
+.discount-box { display: flex; gap: 8px; }
+.discount-box input { flex: 1; text-transform: uppercase; letter-spacing: .05em; }
+.discount-msg { font-size: .85rem; min-height: 1.6em; margin-top: 6px; }
+.ok-text { color: var(--primary); font-weight: 700; }
+.err-text { color: var(--danger); font-weight: 700; }
+.discount-line span:last-child { color: var(--danger); font-weight: 800; }
+.option .dims { font-size: .78rem; font-weight: 700; color: var(--primary-600); background: var(--primary-50); border-radius: 8px; padding: 2px 8px; margin: 4px 4px 2px; align-self: flex-start; }
+.grid-3 > .field input { min-width: 0; }

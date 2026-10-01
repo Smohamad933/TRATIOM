@@ -118,8 +118,10 @@ final class Application
                 $this->get(PaymentRepository::class),
                 fn (string $name) => $this->gateway($name),
                 (string) $c->get('app.url'),
-                $this->get(Logger::class)
+                $this->get(Logger::class),
+                discounts: $this->get(\Terrarium\Application\UseCases\Discount\DiscountService::class)
             ),
+            \Terrarium\Application\UseCases\Discount\DiscountService::class => new \Terrarium\Application\UseCases\Discount\DiscountService($this->get(Database::class)),
             PaymentCallbackService::class => new PaymentCallbackService(
                 $this->get(Database::class),
                 $this->get(OrderRepository::class),

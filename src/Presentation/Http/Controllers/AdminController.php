@@ -43,6 +43,11 @@ final class AdminController
     public function font(Request $r): Response { return $this->ok(['font' => $this->fontSvc()->current()]); }
     public function uploadFont(Request $r): Response { return $this->ok(['font' => $this->fontSvc()->upload((string) $r->input('font', ''), (string) $r->input('name', ''))], 201); }
     public function deleteFont(Request $r): Response { $this->fontSvc()->remove(); return $this->ok(['font' => null]); }
+    private function discSvc(): \Terrarium\Application\UseCases\Discount\DiscountService { return $this->app->get(\Terrarium\Application\UseCases\Discount\DiscountService::class); }
+    public function discounts(Request $r): Response { return $this->ok($this->discSvc()->list()); }
+    public function createDiscount(Request $r): Response { return $this->ok($this->discSvc()->save(null, $r->body), 201); }
+    public function updateDiscount(Request $r): Response { return $this->ok($this->discSvc()->save($r->params['id'], $r->body)); }
+    public function deleteDiscount(Request $r): Response { return $this->ok(['result' => $this->discSvc()->delete($r->params['id'])]); }
     public function rules(Request $r): Response { return $this->ok($this->svc()->rules()); }
     public function createRule(Request $r): Response { return $this->ok($this->svc()->createRule($r->body), 201); }
 

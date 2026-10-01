@@ -53,8 +53,25 @@ final class OrderController
         ];
 
         $gateway = (string) $r->input('gateway', $this->app->availableGateways()[0] ?? '');
-        $res = $this->app->get(PlaceOrderService::class)->place($user, ValidateConfigurationInput::fromArray($config), $shipping, $gateway);
+        $res = $this->app->get(PlaceOrderService::class)->place($user, ValidateConfigurationInput::fromArray($config), $shipping, $gateway, is_string($r->input('discount_code')) ? $r->input('discount_code') : null);
         return Response::json(['success' => true, 'data' => $res], 201);
+    }
+
+    /** Check a discount code against the current configuration (before placing the order). */
+    public function checkDiscount(Request $r): Response
+    {
+        $config = $r->input('configuration');
+        if (!is_array($config)) throw new ValidationException('اطلاعات ترکیب تراریوم ارسال نشده است.', ['field' => 'configuration']);
+        $out = $this->app->get(\Terrarium\Application\UseCases\Configurator\ValidateConfigurationUseCase::class)
+            ->execute(ValidateConfigurationInput::fromArray($config), (string) $r->attributes['user']['id']);
+        if (!$out['is_valid']) throw new ValidationException('ترکیب انتخابی قابل سفارش نیست.');
+        $sub = $out['breakdown']->subtotal->amount; $ship = $out['breakdown']->shipping->amount;
+        $d = $this->app->get(\Terrarium\Application\UseCases\Discount\DiscountService::class)
+            ->evaluate((string) $r->input('code', ''), $r->attributes['user'], $sub, $ship);
+        return Response::json(['success' => true, 'data' => [
+            'code' => $d['code'], 'label' => $d['label'], 'discount_cents' => $d['discount_cents'],
+            'subtotal_cents' => $sub, 'shipping_cents' => $ship, 'payable_cents' => $out['breakdown']->total->amount - $d['discount_cents'],
+        ]]);
     }
 
     public function index(Request $r): Response
@@ -86,7 +103,7 @@ final class OrderController
     private function publicOrder(array $o): array
     {
         return array_intersect_key($o, array_flip([
-            'id', 'order_number', 'status', 'total_price_cents', 'shipping_cents', 'discount_cents', 'currency',
+            'id', 'order_number', 'status', 'total_price_cents', 'shipping_cents', 'discount_cents', 'discount_code', 'currency',
             'payment_gateway', 'recipient_name', 'recipient_phone', 'shipping_address', 'postal_code', 'customer_note', 'paid_at', 'created_at',
         ]));
     }

@@ -23,6 +23,7 @@ use Terrarium\Infrastructure\Persistence\Repositories\UserRepository;
 final class AdminService
 {
     private const INT_FIELDS = ['total_volume_ml', 'usable_volume_ml', 'max_plant_capacity', 'price_cents', 'stock_quantity', 'volume_occupancy_ml', 'volume_per_unit_ml'];
+    private const DEC_FIELDS = ['width_cm', 'depth_cm', 'height_cm'];
     private const BOOL_FIELDS = ['is_closed_ecosystem', 'is_active', 'tolerates_closed_glass'];
     private const REQUIRED = [
         'glass_size' => ['name', 'code', 'total_volume_ml', 'usable_volume_ml', 'max_plant_capacity', 'price_cents'],
@@ -256,7 +257,15 @@ final class AdminService
                 continue;
             }
             $v = $input[$f];
-            if (in_array($f, self::INT_FIELDS, true)) {
+            if (in_array($f, self::DEC_FIELDS, true)) {
+                if ($v === '' || $v === null) {
+                    $v = null;
+                } elseif (!is_numeric($v) || (float) $v <= 0 || (float) $v > 500) {
+                    throw new ValidationException('ابعاد باید عددی بین ۰ تا ۵۰۰ سانتی‌متر باشد.', ['field' => $f]);
+                } else {
+                    $v = round((float) $v, 1);
+                }
+            } elseif (in_array($f, self::INT_FIELDS, true)) {
                 if (!is_numeric($v) || (float) $v !== floor((float) $v) || (int) $v < 0) {
                     throw new ValidationException("مقدار {$f} باید عدد صحیح غیرمنفی باشد.", ['field' => $f]);
                 }

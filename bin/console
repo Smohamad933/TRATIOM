@@ -12,6 +12,8 @@ declare(strict_types=1);
  *   php bin/console admin:remove <mobile>
  *   php bin/console cleanup              Purge expired tokens and old OTP codes
  *   php bin/console check                Diagnose the server environment
+ *   php bin/console bale:webhook         Connect the Bale bot to this site (webhook, needs https)
+ *   php bin/console bale:poll            Run the Bale bot with long polling (no https/webhook needed)
  */
 
 use Terrarium\Infrastructure\Persistence\Database;
@@ -20,6 +22,8 @@ use Terrarium\Infrastructure\Persistence\Repositories\OtpRepository;
 use Terrarium\Infrastructure\Persistence\Repositories\TokenRepository;
 use Terrarium\Infrastructure\Persistence\Repositories\UserRepository;
 use Terrarium\Application\UseCases\Auth\OtpService;
+use Terrarium\Application\UseCases\Bale\BaleBotService;
+use Terrarium\Infrastructure\Bale\BaleBotClient;
 
 if (PHP_SAPI !== 'cli') {
     exit(1);
@@ -108,8 +112,40 @@ try {
             fwrite(STDOUT, $problems ? "\n{$problems} problem(s) found.\n" : "\nAll checks passed.\n");
             exit($problems ? 1 : 0);
 
+        case 'bale:webhook':
+            $bot = $app->get(BaleBotClient::class);
+            $me = $bot->getMe();
+            $ok('Bot: @' . ($me['username'] ?? '?') . ' (' . ($me['first_name'] ?? '') . ')');
+            $url = $app->baleWebhookUrl();
+            if (!str_starts_with($url, 'https://')) {
+                $fail('APP_URL must be https:// for the Bale webhook. Use "php bin/console bale:poll" until SSL is ready.');
+            }
+            $bot->setWebhook($url);
+            $ok('Webhook set: ' . preg_replace('#/webhook/.+$#', '/webhook/***', $url));
+            break;
+
+        case 'bale:poll':
+            $bot = $app->get(BaleBotClient::class);
+            $me = $bot->getMe();
+            $bot->deleteWebhook(); // getUpdates does not work while a webhook is set
+            $ok('Polling as @' . ($me['username'] ?? '?') . ' — press Ctrl+C to stop. Run "bale:webhook" later to switch back.');
+            $service = $app->get(BaleBotService::class);
+            $offset = 0;
+            while (true) {
+                try {
+                    foreach ($bot->getUpdates($offset, 25) as $update) {
+                        $offset = max($offset, (int) $update['update_id'] + 1);
+                        $service->handle($update);
+                        fwrite(STDOUT, '  update ' . $update['update_id'] . ' (' . implode(',', array_diff(array_keys($update), ['update_id'])) . ")\n");
+                    }
+                } catch (Throwable $e) {
+                    fwrite(STDERR, '  ' . $e->getMessage() . "\n");
+                    sleep(3);
+                }
+            }
+
         default:
-            fwrite(STDOUT, "Terrarium CLI\n\n  migrate | migrate:status | key:generate | admin:add <mobile> | admin:remove <mobile> | cleanup | check\n");
+            fwrite(STDOUT, "Terrarium CLI\n\n  migrate | migrate:status | key:generate | admin:add <mobile> | admin:remove <mobile> | cleanup | check | bale:webhook | bale:poll\n");
     }
 } catch (Throwable $e) {
     $fail($e->getMessage());

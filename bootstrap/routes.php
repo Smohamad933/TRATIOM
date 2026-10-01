@@ -6,6 +6,7 @@ use Terrarium\Infrastructure\Http\Router;
 use Terrarium\Kernel\Application;
 use Terrarium\Presentation\Http\Controllers\AdminController;
 use Terrarium\Presentation\Http\Controllers\AuthController;
+use Terrarium\Presentation\Http\Controllers\BaleController;
 use Terrarium\Presentation\Http\Controllers\CatalogController;
 use Terrarium\Presentation\Http\Controllers\OrderController;
 use Terrarium\Presentation\Http\Controllers\PaymentController;
@@ -24,6 +25,7 @@ return static function (Application $app): Router {
     $orders = new OrderController($app);
     $payments = new PaymentController($app);
     $adm = new AdminController($app);
+    $bale = new BaleController($app);
 
     // System
     $r->get('/health', [$system, 'health']);
@@ -51,6 +53,9 @@ return static function (Application $app): Router {
     $r->post('/api/v1/payments/verify/{gateway}', [$payments, 'callback']);
     $r->get('/api/v1/payments/test-gateway', [$payments, 'testGateway']);
 
+    // Bale bot webhook (secret path; Bale sends no signature)
+    $r->post('/api/v1/bale/webhook/{secret}', [$bale, 'webhook']);
+
     // Admin (only GET/POST are used so no extra IIS verb configuration is needed)
     $r->get('/api/v1/admin/dashboard', [$adm, 'dashboard'], $admin);
     $r->get('/api/v1/admin/system', [$adm, 'system'], $admin);
@@ -64,6 +69,9 @@ return static function (Application $app): Router {
     $r->get('/api/v1/admin/orders', [$adm, 'orders'], $admin);
     $r->get('/api/v1/admin/orders/{id}', [$adm, 'order'], $admin);
     $r->post('/api/v1/admin/orders/{id}/status', [$adm, 'changeStatus'], $admin);
+
+    $r->get('/api/v1/admin/bale', [$bale, 'status'], $admin);
+    $r->post('/api/v1/admin/bale/setup', [$bale, 'setup'], $admin);
 
     return $r;
 };

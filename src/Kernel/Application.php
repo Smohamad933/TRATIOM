@@ -35,6 +35,12 @@ use Terrarium\Infrastructure\Persistence\Repositories\UserRepository;
 use Terrarium\Infrastructure\SMS\KavenegarSmsService;
 use Terrarium\Infrastructure\SMS\LogSmsService;
 use Terrarium\Infrastructure\SMS\SmsServiceInterface;
+use Terrarium\Infrastructure\SMS\BaleOtpService;
+use Terrarium\Infrastructure\Bale\BaleBotClient;
+use Terrarium\Infrastructure\Bale\SafirClient;
+use Terrarium\Infrastructure\Gateways\BaleGateway;
+use Terrarium\Infrastructure\Persistence\Repositories\BaleChatRepository;
+use Terrarium\Application\UseCases\Bale\BaleBotService;
 use Terrarium\Support\Config;
 use Throwable;
 
@@ -126,11 +132,44 @@ final class Application
                 $this->get(PaymentRepository::class),
                 $this->get(UserRepository::class)
             ),
+            BaleBotClient::class => new BaleBotClient((string) $c->get('bale.bot_token', ''), $this->get(HttpClient::class)),
+            SafirClient::class => new SafirClient((string) $c->get('bale.safir_api_key', ''), (int) $c->get('bale.bot_id', 0)),
+            BaleChatRepository::class => new BaleChatRepository($this->get(Database::class)),
+            BaleGateway::class => new BaleGateway(
+                $this->get(BaleBotClient::class),
+                $this->get(SafirClient::class),
+                (string) $c->get('bale.bot_username', ''),
+                (string) $c->get('bale.wallet_token', ''),
+                $this->get(Logger::class)
+            ),
+            BaleBotService::class => new BaleBotService(
+                $this->get(BaleBotClient::class),
+                $this->get(BaleGateway::class),
+                $this->get(BaleChatRepository::class),
+                $this->get(UserRepository::class),
+                $this->get(OrderRepository::class),
+                $this->get(PaymentRepository::class),
+                $this->get(PaymentCallbackService::class),
+                $this->get(Database::class),
+                rtrim((string) $c->get('app.url'), '/'),
+                $this->get(Logger::class)
+            ),
             default => throw new InvalidArgumentException("Unknown service {$id}"),
         };
     }
 
     private function buildSms(): SmsServiceInterface
+    {
+        $sms = $this->buildSmsProvider();
+        if ($this->config->get('bale.otp_enabled') && $this->get(SafirClient::class)->isConfigured()) {
+            // Code goes to the user's Bale (no /start needed); SMS is used only if that fails.
+            // With SMS_DEFAULT_PROVIDER=log there is no real fallback, so only the Bale message is sent.
+            return new BaleOtpService($this->get(SafirClient::class), $sms, $this->get(Logger::class));
+        }
+        return $sms;
+    }
+
+    private function buildSmsProvider(): SmsServiceInterface
     {
         $provider = (string) $this->config->get('sms.default', 'log');
         if ($provider === 'kavenegar') {
@@ -148,7 +187,7 @@ final class Application
     /** Gateways customers may choose at checkout (configured + enabled). */
     public function availableGateways(): array
     {
-        $names = array_values(array_intersect((array) $this->config->get('payment.enabled', []), PaymentGatewayFactory::SUPPORTED));
+        $names = array_values(array_intersect((array) $this->config->get('payment.enabled', []), [...PaymentGatewayFactory::SUPPORTED, 'bale']));
         if (!$this->isProduction() && in_array('test', (array) $this->config->get('payment.enabled', []), true)) {
             $names[] = 'test';
         }
@@ -163,6 +202,9 @@ final class Application
 
     public function gatewayInstance(string $name): PaymentGatewayInterface
     {
+        if ($name === 'bale') {
+            return $this->get(BaleGateway::class);
+        }
         if ($name === 'test') {
             if ($this->isProduction()) {
                 throw new InvalidArgumentException('Test gateway is disabled in production.');
@@ -179,6 +221,18 @@ final class Application
             throw new ValidationException('درگاه پرداخت انتخاب‌شده در دسترس نیست.', ['field' => 'gateway']);
         }
         return $this->gatewayInstance($name);
+    }
+
+    /** Secret path segment of the Bale webhook URL (Bale sends no signature header). */
+    public function baleWebhookSecret(): string
+    {
+        $s = (string) $this->config->get('bale.webhook_secret', '');
+        return $s !== '' ? $s : substr(hash_hmac('sha256', 'bale-webhook', $this->appSecret()), 0, 40);
+    }
+
+    public function baleWebhookUrl(): string
+    {
+        return rtrim((string) $this->config->get('app.url'), '/') . '/api/v1/bale/webhook/' . $this->baleWebhookSecret();
     }
 
     public function appSecret(): string

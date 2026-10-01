@@ -187,7 +187,14 @@ final class DiscountService
     private static function mobiles(string $raw, bool $strict = false): array
     {
         $out = [];
-        foreach (preg_split('/[\s,،;]+/u', $raw) ?: [] as $m) {
+        $tokens = [];
+        foreach (preg_split('/[\r\n,،;]+/u', $raw) ?: [] as $t) {
+            // "0912 111 1111" is one number; "09121111111 09122222222" is two
+            $digits = preg_replace('/\D+/', '', $t) ?? '';
+            if (strlen($digits) > 13) { foreach (preg_split('/\s+/', trim($t)) ?: [] as $x) $tokens[] = $x; }
+            else $tokens[] = $t;
+        }
+        foreach ($tokens as $m) {
             if (trim($m) === '') continue;
             $n = self::mobileOf($m);
             if ($n === '') {

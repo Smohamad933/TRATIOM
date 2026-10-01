@@ -231,7 +231,7 @@
       <div class="option ${state.cart.glass === x.id ? 'selected' : ''} ${x.stock_quantity < 1 ? 'disabled' : ''}" data-glass="${esc(x.id)}" tabindex="0">
         <div class="art">${x.image_url ? `<img src="${esc(x.image_url)}" alt="" loading="lazy">` : window.TerrariumPreview.item('glass', x, c)}</div>
         <div class="name">${esc(x.name)}</div>
-        ${dims(x) ? `<div class="dims">📏 ${dims(x)}</div>` : ''}
+        ${dims(x) ? `<div class="dims ltr" title="${esc(dimsTitle(x))}">📏 ${dims(x)}</div>` : ''}
         <div class="meta">حجم مفید ${num(x.usable_volume_ml)} میلی‌لیتر · تا ${num(x.max_plant_capacity)} گیاه</div>
         <div class="tags">${x.is_closed_ecosystem ? '<span class="badge info">دربسته (مرطوب)</span>' : '<span class="badge">درباز</span>'}
           ${x.stock_quantity < 1 ? '<span class="badge err">ناموجود</span>' : ''}</div>
@@ -317,8 +317,9 @@
     renderSummaryMain();
     const bar = $('#mobile-bar'); if (!bar) return;
     const v = state.validation, btn = $('#btn-checkout');
-    bar.classList.toggle('hidden', !state.cart.glass);
-    document.body.classList.toggle('has-mobile-bar', !!state.cart.glass);
+    const onBuilder = !/^#\/(checkout|orders)/.test(location.hash);
+    bar.classList.toggle('hidden', !state.cart.glass || !onBuilder);
+    document.body.classList.toggle('has-mobile-bar', !!state.cart.glass && onBuilder);
     $('#mb-total').textContent = v && v.price ? toman(v.price.total_cents) : '—';
     $('#mb-status').textContent = !v ? 'در حال بررسی…' : v.error ? 'خطا' : v.is_valid ? '✓ سازگار' : '⚠ نیاز به اصلاح';
     $('#mb-status').className = 'mb-status ' + (v && v.is_valid ? 'ok' : 'err');
@@ -485,8 +486,13 @@
     if (!g || !g.height_cm) return '';
     const n = (v) => num(Number(v));
     const round = g.width_cm && g.depth_cm && Number(g.width_cm) === Number(g.depth_cm) && !/RECT|مستطیل/i.test((g.code || '') + g.name);
-    return round ? `قطر ${n(g.width_cm)} × ارتفاع ${n(g.height_cm)} سانتی‌متر`
-      : `${g.width_cm ? 'عرض ' + n(g.width_cm) + ' × ' : ''}${g.depth_cm ? 'عمق ' + n(g.depth_cm) + ' × ' : ''}ارتفاع ${n(g.height_cm)} سانتی‌متر`;
+    return round ? `⌀ ${n(g.width_cm)} × ${n(g.height_cm)} cm`
+      : `${g.width_cm ? n(g.width_cm) + ' × ' : ''}${g.depth_cm ? n(g.depth_cm) + ' × ' : ''}${n(g.height_cm)} cm`;
+  }
+  function dimsTitle(g) {
+    if (!g || !g.height_cm) return '';
+    const n = (v) => num(Number(v));
+    return `${g.width_cm ? 'عرض/قطر ' + n(g.width_cm) + ' · ' : ''}${g.depth_cm ? 'عمق ' + n(g.depth_cm) + ' · ' : ''}ارتفاع ${n(g.height_cm)} سانتی‌متر`;
   }
 
   // ---- discount code (checked live; re-validated by the server when the order is placed)
@@ -542,6 +548,7 @@
   function bindCheckout() {
     $('#btn-checkout').addEventListener('click', openFinal);
     $('#mb-go').addEventListener('click', openFinal);
+    window.addEventListener('hashchange', () => renderSummary());
     $('#mb-preview').addEventListener('click', () => $('#summary').scrollIntoView({ behavior: 'smooth', block: 'center' }));
 
     $('#discount-apply').addEventListener('click', () => ($('#discount-apply').dataset.mode === 'remove' ? removeDiscount() : applyDiscount()));

@@ -553,3 +553,11 @@ body.has-mobile-bar .site-footer { padding-bottom: 80px; }
 .discount-line span:last-child { color: var(--danger); font-weight: 800; }
 .option .dims { font-size: .78rem; font-weight: 700; color: var(--primary-600); background: var(--primary-50); border-radius: 8px; padding: 2px 8px; margin: 4px 4px 2px; align-self: flex-start; }
 .grid-3 > .field input { min-width: 0; }
+
+input[type=datetime-local], input[type=date] { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font: inherit; color: var(--text); min-height: 44px; }
+.option .dims { direction: ltr; unicode-bidi: isolate; }
+@media (max-width: 640px) {
+  .discount-box .btn { flex: none; }
+  #disc-form .grid-2 { grid-template-columns: 1fr 1fr; }
+  #disc-form .grid-2 .field > span { font-size: .78rem; }
+}

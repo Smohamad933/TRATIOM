@@ -567,3 +567,33 @@ input[type=datetime-local], input[type=date] { width: 100%; padding: 9px 12px; b
   /* keep the checkout view and its grid from exceeding the container */
   #view-checkout, #view-checkout .layout { width: 100%; min-width: 0; }
 }
+
+/* =====================================================================
+   GLASSMORPHISM LAYER (frosted-glass surfaces for a modern mobile feel)
+   ===================================================================== */
+:root {
+  --glass-bg: rgba(255, 255, 255, .55);
+  --glass-bg-strong: rgba(255, 255, 255, .72);
+  --glass-brd: rgba(255, 255, 255, .6);
+  --glass-blur: 16px;
+}
+/* soft color blobs behind the content so the frosted glass has something to blur */
+body::before, body::after {
+  content: ""; position: fixed; z-index: -1; border-radius: 50%;
+  filter: blur(50px); opacity: .45; pointer-events: none;
+}
+body::before { width: 440px; height: 440px; top: -130px; right: -130px;
+  background: radial-gradient(circle at 35% 35%, #bfe8c8, transparent 70%); }
+body::after  { width: 480px; height: 480px; bottom: -150px; left: -130px;
+  background: radial-gradient(circle at 65% 65%, #f7e6c4, transparent 70%); }
+
+/* frosted surfaces */
+.card { background: var(--glass-bg); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%); backdrop-filter: blur(var(--glass-blur)) saturate(140%); border: 1px solid var(--glass-brd); }
+.feat { background: var(--glass-bg-strong); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid var(--glass-brd); }
+.option { background: var(--glass-bg); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1.5px solid var(--glass-brd); }
+.preset { background: var(--glass-bg); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid var(--glass-brd); }
+.preview-card { background: var(--glass-bg-strong); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.modal-backdrop { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.modal { background: var(--glass-bg-strong); -webkit-backdrop-filter: blur(22px) saturate(150%); backdrop-filter: blur(22px) saturate(150%); border: 1px solid var(--glass-brd); }
+.mobile-bar { background: rgba(255, 255, 255, .6); -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%); }
+

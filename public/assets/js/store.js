@@ -5,11 +5,13 @@
   const $ = (s, el = document) => el.querySelector(s);
 
   const CART_KEY = 'terrarium_cart';
+  const PRESET_KEY = 'terrarium_preset';
   const state = {
     catalog: null,
     cart: loadCart(),       // { glass: id, plants: {id: qty}, stones: {...}, figures: {...} }
     validation: null,
     validating: false,
+    presetId: localStorage.getItem(PRESET_KEY) || null, // ready-made terrarium the cart started from
   };
 
   function loadCart() {
@@ -19,7 +21,178 @@
     } catch { /* ignore */ }
     return { glass: null, plants: {}, stones: {}, figures: {} };
   }
-  function saveCart() { localStorage.setItem(CART_KEY, JSON.stringify(state.cart)); }
+  function saveCart() {
+    localStorage.setItem(CART_KEY, JSON.stringify(state.cart));
+    if (state.presetId) localStorage.setItem(PRESET_KEY, state.presetId); else localStorage.removeItem(PRESET_KEY);
+  }
+
+  // ------------------------------------------------------------------ presets (ready-made terrariums)
+
+  const cartFromConfig = (cfg) => {
+    const map = (arr) => Object.fromEntries((arr || []).filter((x) => x.quantity > 0).map((x) => [x.id, x.quantity]));
+    return { glass: cfg.glass_size_id || null, plants: map(cfg.plants), stones: map(cfg.stones), figures: map(cfg.figures) };
+  };
+  const cartKey = (c) => JSON.stringify([c.glass, ...['plants', 'stones', 'figures'].map((k) => Object.entries(c[k] || {}).filter(([, q]) => q > 0).sort())]);
+  const currentPreset = () => (state.catalog && state.presetId ? (state.catalog.presets || []).find((p) => p.id === state.presetId) : null) || null;
+  const isUnchangedPreset = () => { const p = currentPreset(); return !!p && cartKey(cartFromConfig(p.configuration)) === cartKey(state.cart); };
+
+  /** price + availability of a preset computed from the live catalog (prices may change after the preset was made) */
+  function presetInfo(p) {
+    const c = state.catalog;
+    const find = (arr, id) => (arr || []).find((x) => x.id === id);
+    const glass = find(c.glass_sizes, p.configuration.glass_size_id);
+    let total = glass ? glass.price_cents : 0;
+    let ok = !!glass && glass.stock_quantity > 0;
+    const names = [];
+    for (const [k, arr] of [['plants', c.plants], ['stones', c.stones], ['figures', c.figures]]) {
+      for (const it of p.configuration[k] || []) {
+        const x = find(arr, it.id);
+        if (!x || x.stock_quantity < it.quantity) { ok = false; continue; }
+        total += x.price_cents * it.quantity;
+        if (k === 'plants') names.push(x.name + (it.quantity > 1 ? ' ×' + num(it.quantity) : ''));
+      }
+    }
+    return { glass, total, ok, names };
+  }
+
+  function renderPresets() {
+    const list = (state.catalog && state.catalog.presets) || [];
+    const box = $('#presets');
+    if (!box) return;
+    $('#presets-section').classList.toggle('hidden', !list.length);
+    box.innerHTML = list.map((p) => {
+      const info = presetInfo(p);
+      const photo = p.image_url
+        ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`
+        : window.TerrariumPreview.svg(cartFromConfig(p.configuration), state.catalog);
+      return `<article class="preset ${state.presetId === p.id ? 'active' : ''}">
+        <div class="ph">${photo}</div>
+        <div class="body">
+          <div class="row between"><b>${esc(p.name)}</b>${info.glass && info.glass.is_closed_ecosystem ? '<span class="badge info">دربسته</span>' : '<span class="badge">درباز</span>'}</div>
+          ${p.description ? `<div class="desc">${esc(p.description)}</div>` : ''}
+          <div class="chips">${info.names.map((n) => `<span class="badge">${esc(n)}</span>`).join('')}</div>
+          <div class="price">${toman(info.total)}</div>
+          ${info.ok ? '' : '<div class="alert warn" style="padding:6px 10px;font-size:.8rem">بعضی اقلام ناموجود است؛ با «شخصی‌سازی» جایگزین کنید.</div>'}
+          <div class="actions">
+            <button class="btn primary sm" data-preset-buy="${esc(p.id)}" ${info.ok ? '' : 'disabled'}>🛒 خرید همین</button>
+            <button class="btn sm" data-preset-edit="${esc(p.id)}">✏️ شخصی‌سازی</button>
+          </div>
+        </div>
+      </article>`;
+    }).join('') + `<article class="preset scratch">
+        <div class="ph">🧪</div>
+        <div class="body"><b>ساخت از صفر</b><div class="desc">ظرف، گیاه، بستر و تزئینات را خودت انتخاب کن.</div>
+          <div class="actions" style="grid-template-columns:1fr"><button class="btn sm" data-scratch>✨ شروع ساخت</button></div></div>
+      </article>`;
+  }
+
+  function renderBasedOn() {
+    const p = currentPreset();
+    const box = $('#based-on');
+    if (!p) { box.innerHTML = ''; return; }
+    const same = isUnchangedPreset();
+    box.innerHTML = `<div class="alert info based-on">
+      <span>🌿 بر اساس <b>«${esc(p.name)}»</b> ${same ? '— بدون تغییر' : '<span class="badge warn">شخصی‌سازی‌شده</span>'}</span>
+      <span class="row gap-sm">${same ? '' : `<button class="btn sm" data-preset-reset="${esc(p.id)}">↩️ بازگشت به حالت اولیه</button>`}<button class="btn ghost sm" data-scratch>شروع از صفر</button></span>
+    </div>`;
+  }
+
+  async function applyPreset(id, then) {
+    const p = (state.catalog.presets || []).find((x) => x.id === id);
+    if (!p) return;
+    state.presetId = p.id;
+    state.cart = cartFromConfig(p.configuration);
+    saveCart();
+    renderCatalog();
+    await validate();
+    if (then === 'buy') {
+      if (state.validation && state.validation.is_valid) openFinal();
+      else { toast('این تراریوم فعلاً قابل سفارش نیست؛ آن را شخصی‌سازی کنید.', 'err'); scrollToBuilder(); }
+    } else if (then === 'edit') {
+      scrollToBuilder();
+      toast(`«${p.name}» بارگذاری شد؛ هر بخشی را خواستی تغییر بده.`);
+    }
+  }
+
+  function startScratch() {
+    state.presetId = null;
+    state.cart = { glass: null, plants: {}, stones: {}, figures: {} };
+    saveCart();
+    renderCatalog();
+    validate();
+    scrollToBuilder();
+  }
+  const scrollToBuilder = () => $('#builder-anchor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  function renderLivePreview() {
+    if (!state.catalog) return;
+    $('#live-preview').innerHTML = window.TerrariumPreview.svg(state.cart, state.catalog);
+  }
+
+  // ------------------------------------------------------------------ final preview (before checkout)
+
+  function itemThumb(x, emoji) {
+    return x && x.image_url ? `<img src="${esc(x.image_url)}" alt="" loading="lazy">` : `<span class="ic">${emoji}</span>`;
+  }
+
+  function openFinal() {
+    const v = state.validation;
+    if (!v || !v.is_valid) return;
+    const c = state.catalog;
+    const p = currentPreset();
+    const same = isUnchangedPreset();
+    $('#final-render').innerHTML = window.TerrariumPreview.svg(state.cart, c);
+    const showPhoto = same && p && p.image_url;
+    $('#final-tabs').classList.toggle('hidden', !showPhoto);
+    const setView = (view) => {
+      $('#final-render').classList.toggle('hidden', view !== 'render');
+      $('#final-photo').classList.toggle('hidden', view !== 'photo');
+      document.querySelectorAll('#final-tabs .tab').forEach((t) => t.classList.toggle('active', t.dataset.view === view));
+    };
+    if (showPhoto) { $('#final-photo').src = p.image_url; $('#final-photo').alt = p.name; setView('photo'); }
+    else setView('render');
+    $('#final-note').textContent = showPhoto
+      ? `عکس نمونه «${p.name}». هر تراریوم دست‌ساز است و ممکن است کمی با عکس فرق داشته باشد.`
+      : 'تصویر بالا پیش‌نمایش طراحی‌شده از ترکیب انتخابی شماست؛ چیدمان واقعی دست‌ساز است.';
+    const find = (arr, id) => (arr || []).find((x) => x.id === id);
+    const glass = find(c.glass_sizes, state.cart.glass);
+    let rows = `<div class="final-item">${itemThumb(glass, '🫙')}<span class="nm">${esc(glass.name)}</span><span>${toman(glass.price_cents)}</span></div>`;
+    for (const [k, arr, emo] of [['plants', c.plants, '🪴'], ['stones', c.stones, '🪨'], ['figures', c.figures, '✨']]) {
+      for (const [id, q] of Object.entries(state.cart[k])) {
+        const x = find(arr, id); if (!x || q < 1) continue;
+        rows += `<div class="final-item">${itemThumb(x, emo)}<span class="nm">${esc(x.name)} × ${num(q)}</span><span>${toman(x.price_cents * q)}</span></div>`;
+      }
+    }
+    $('#final-title').textContent = p ? (same ? `«${p.name}»` : `«${p.name}» (شخصی‌سازی‌شده)`) : 'نسخه نهایی تراریوم شما';
+    $('#final-items').innerHTML = rows;
+    $('#final-price').innerHTML = priceLines(v);
+    $('#final-modal').classList.remove('hidden');
+  }
+  const closeFinal = () => $('#final-modal').classList.add('hidden');
+
+  function bindPresets() {
+    document.addEventListener('click', (e) => {
+      let el;
+      if ((el = e.target.closest('[data-preset-buy]'))) applyPreset(el.dataset.presetBuy, 'buy');
+      else if ((el = e.target.closest('[data-preset-edit]'))) applyPreset(el.dataset.presetEdit, 'edit');
+      else if ((el = e.target.closest('[data-preset-reset]'))) applyPreset(el.dataset.presetReset, null);
+      else if (e.target.closest('[data-scratch]')) startScratch();
+    });
+    $('#final-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'final-modal' || e.target.closest('[data-close]')) closeFinal();
+      const tab = e.target.closest('#final-tabs .tab');
+      if (tab) {
+        $('#final-render').classList.toggle('hidden', tab.dataset.view !== 'render');
+        $('#final-photo').classList.toggle('hidden', tab.dataset.view !== 'photo');
+        document.querySelectorAll('#final-tabs .tab').forEach((t) => t.classList.toggle('active', t === tab));
+      }
+    });
+    $('#btn-final-ok').addEventListener('click', () => {
+      closeFinal();
+      if (!auth.token) openLogin(() => { location.hash = '#/checkout'; });
+      else location.hash = '#/checkout';
+    });
+  }
 
   function configurationPayload() {
     const list = (o) => Object.entries(o).filter(([, q]) => q > 0).map(([id, quantity]) => ({ id, quantity }));
@@ -44,7 +217,7 @@
 
     $('#opt-glass').innerHTML = c.glass_sizes.length ? c.glass_sizes.map((x) => `
       <div class="option ${state.cart.glass === x.id ? 'selected' : ''} ${x.stock_quantity < 1 ? 'disabled' : ''}" data-glass="${esc(x.id)}" tabindex="0">
-        <div class="emoji">🫙</div>
+        ${x.image_url ? `<img class="thumb" src="${esc(x.image_url)}" alt="" loading="lazy">` : '<div class="emoji">🫙</div>'}
         <div class="name">${esc(x.name)}</div>
         <div class="meta">حجم مفید ${num(x.usable_volume_ml)} میلی‌لیتر · تا ${num(x.max_plant_capacity)} گیاه</div>
         <div class="tags">${x.is_closed_ecosystem ? '<span class="badge info">دربسته (مرطوب)</span>' : '<span class="badge">درباز</span>'}
@@ -56,7 +229,7 @@
       const q = state.cart[kind][x.id] || 0;
       const out = x.stock_quantity < 1;
       return `<div class="option ${q ? 'selected' : ''} ${out ? 'disabled' : ''}" data-kind="${kind}" data-id="${esc(x.id)}">
-        <div class="emoji">${emoji}</div>
+        ${x.image_url ? `<img class="thumb" src="${esc(x.image_url)}" alt="" loading="lazy">` : `<div class="emoji">${emoji}</div>`}
         <div class="name">${esc(x.name)}</div>
         <div class="meta">${meta}</div>
         <div class="tags">${tags}${out ? '<span class="badge err">ناموجود</span>' : ''}</div>
@@ -72,6 +245,12 @@
 
     $('#opt-stones').innerHTML = c.stones.map((x) => qtyOption('stones', x, '🪨', `${num(x.volume_per_unit_ml)} ml در هر واحد`)).join('') || '<p class="muted">—</p>';
     $('#opt-figures').innerHTML = c.figures.map((x, i) => qtyOption('figures', x, figureEmoji[i % figureEmoji.length], `${num(x.volume_occupancy_ml)} ml`)).join('') || '<p class="muted">—</p>';
+    renderLivePreview();
+    renderBasedOn();
+    document.querySelectorAll('.preset').forEach((el) => {
+      const b = el.querySelector('[data-preset-edit]');
+      el.classList.toggle('active', !!b && b.dataset.presetEdit === state.presetId);
+    });
   }
 
   function onOptionClick(e) {
@@ -283,6 +462,7 @@
     if (!auth.token) { location.hash = '#/'; openLogin(() => { location.hash = '#/checkout'; }); return; }
 
     $('#checkout-summary').innerHTML = priceLines(v);
+    $('#checkout-preview').innerHTML = window.TerrariumPreview.svg(state.cart, state.catalog);
     const gws = (state.catalog && state.catalog.payment_gateways) || [];
     $('#gateway-select').innerHTML = gws.length
       ? gws.map((g) => `<option value="${esc(g)}">${esc(GATEWAY_LABEL[g] || g)}</option>`).join('')
@@ -294,10 +474,7 @@
   }
 
   function bindCheckout() {
-    $('#btn-checkout').addEventListener('click', () => {
-      if (!auth.token) openLogin(() => { location.hash = '#/checkout'; });
-      else location.hash = '#/checkout';
-    });
+    $('#btn-checkout').addEventListener('click', openFinal);
 
     $('#checkout-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -320,6 +497,7 @@
           },
         });
         localStorage.removeItem(CART_KEY);
+        localStorage.removeItem(PRESET_KEY);
         if (isBaleLink(res.payment_url)) {
           // Bale: the bot also messaged the customer; show the order page with a big "pay in Bale" button
           sessionStorage.setItem('bale_pay_' + res.order_id, res.payment_url);
@@ -381,6 +559,19 @@
     </div>`;
   }
 
+  /** Draws the ordered terrarium from the order's frozen snapshot (works even if items were later removed). */
+  function snapshotPreview(snap) {
+    const g = snap.glass_size;
+    const cat = {
+      glass_sizes: [{ id: g.id, name: g.name, code: g.code, is_closed_ecosystem: !!g.is_closed }],
+      plants: (snap.plants || []).map((x) => ({ id: x.id, name: x.name })),
+      stones: (snap.stones || []).map((x) => ({ id: x.id, name: x.name, type: x.type })),
+      figures: (snap.figures || []).map((x) => ({ id: x.id, name: x.name })),
+    };
+    const map = (arr) => Object.fromEntries((arr || []).map((x) => [x.id, x.quantity]));
+    return window.TerrariumPreview.svg({ glass: g.id, plants: map(snap.plants), stones: map(snap.stones), figures: map(snap.figures) }, cat);
+  }
+
   async function renderOrder(id) {
     const box = $('#order-detail');
     if (!auth.token) { openLogin(() => renderOrder(id)); box.innerHTML = ''; return; }
@@ -394,6 +585,7 @@
       box.innerHTML = `
         <div class="layout">
           <div class="card">
+            ${item.glass_size ? `<div class="preview-box sm mb-lg">${snapshotPreview(item)}</div>` : ''}
             <h3>اقلام</h3>
             ${item.glass_size ? `<div class="summary-line"><span>🫙 ${esc(item.glass_size.name)}</span><span>${toman(item.glass_size.price_cents)}</span></div>` : ''}
             ${lines(item.plants)}${lines(item.stones)}${lines(item.figures)}
@@ -470,6 +662,8 @@
   async function loadCatalog() {
     try {
       state.catalog = await api('/api/v1/catalog', { auth: false });
+      if (state.presetId && !(state.catalog.presets || []).some((p) => p.id === state.presetId)) state.presetId = null;
+      renderPresets();
       renderCatalog();
     } catch (e) {
       $('#opt-glass').innerHTML = `<div class="alert err">${esc(e.message)}</div>`;
@@ -481,6 +675,7 @@
     renderAuthArea();
     bindLogin();
     bindCheckout();
+    bindPresets();
     document.querySelector('#view-builder').addEventListener('click', onOptionClick);
     document.querySelector('#view-builder').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList.contains('option')) onOptionClick(e); });
     window.addEventListener('hashchange', route);

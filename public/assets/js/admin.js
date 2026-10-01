@@ -114,7 +114,7 @@
     currentTab = tab;
     document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     content().innerHTML = '<p class="muted">در حال بارگذاری…</p>';
-    ({ dashboard, orders, catalog, rules, system }[tab])().catch((e) => {
+    ({ dashboard, orders, presets, catalog, rules, system }[tab])().catch((e) => {
       content().innerHTML = `<div class="alert err">${esc(e.message)}</div>`;
     });
   }
@@ -222,15 +222,18 @@
       <div class="tabs">${Object.entries(TYPE_LABEL).map(([k, v]) => `<button data-type="${k}" class="${k === catalogType ? 'active' : ''}">${v}</button>`).join('')}</div>
       <div class="card"><p class="muted">قیمت‌ها به <b>ریال</b> وارد می‌شوند. تغییرات فوراً روی فروشگاه اعمال می‌شود (سفارش‌های قبلی تغییر نمی‌کنند).</p>
       <div class="table-wrap"><table class="table">
-        <thead><tr><th>عنوان</th><th>مشخصات</th><th>قیمت (ریال)</th><th>موجودی</th><th>فعال</th><th></th></tr></thead>
+        <thead><tr><th>عکس</th><th>عنوان</th><th>مشخصات</th><th>قیمت (ریال)</th><th>موجودی</th><th>فعال</th><th></th></tr></thead>
         <tbody>${rows.map((x) => `<tr data-id="${esc(x.id)}">
+          <td><div class="img-cell">${x.image_url ? `<img src="${esc(x.image_url)}" alt="">` : '<span class="muted">—</span>'}
+            <label class="btn ghost sm" title="آپلود عکس">📷<input type="file" accept="image/jpeg,image/png,image/webp" data-img hidden></label>
+            ${x.image_url ? '<button class="btn ghost sm" data-img-del title="حذف عکس">🗑</button>' : ''}</div></td>
           <td><b>${esc(x.name)}</b>${x.code ? `<div class="mono muted">${esc(x.code)}</div>` : ''}</td>
           <td class="muted">${extra(x)}</td>
           <td><input type="number" min="0" step="1000" name="price_cents" value="${x.price_cents}"><div class="muted" style="font-size:.75rem">${toman(x.price_cents)}</div></td>
           <td><input type="number" min="0" step="1" name="stock_quantity" value="${x.stock_quantity}" style="width:90px"></td>
           <td><input type="checkbox" name="is_active" ${x.is_active ? 'checked' : ''}></td>
           <td><button class="btn sm primary" data-save>ذخیره</button></td>
-        </tr>`).join('') || '<tr><td colspan="6" class="muted">موردی ثبت نشده است.</td></tr>'}</tbody>
+        </tr>`).join('') || '<tr><td colspan="7" class="muted">موردی ثبت نشده است.</td></tr>'}</tbody>
       </table></div></div>`;
 
     content().querySelectorAll('.tabs button').forEach((b) => b.onclick = () => { catalogType = b.dataset.type; renderCatalog(); });
@@ -252,7 +255,155 @@
         renderCatalog();
       } catch (e) { toast(e.message, 'err'); b.disabled = false; }
     });
+    const setImage = async (tr, url) => {
+      const updated = await api(`/api/v1/admin/catalog/${catalogType}/${encodeURIComponent(tr.dataset.id)}`, { method: 'POST', body: { image_url: url } });
+      const list = catalogCache[catalogType];
+      list[list.findIndex((x) => x.id === updated.id)] = updated;
+      renderCatalog();
+    };
+    content().querySelectorAll('[data-img]').forEach((inp) => inp.onchange = async () => {
+      if (!inp.files[0]) return;
+      try { toast('در حال آپلود…'); await setImage(inp.closest('tr'), await uploadImage(inp.files[0])); toast('عکس ذخیره شد.'); }
+      catch (e) { toast(e.message, 'err'); }
+    });
+    content().querySelectorAll('[data-img-del]').forEach((b) => b.onclick = async () => {
+      if (!confirm('عکس حذف شود؟')) return;
+      try { await setImage(b.closest('tr'), ''); } catch (e) { toast(e.message, 'err'); }
+    });
     $('#btn-new-item').onclick = newItemModal;
+  }
+
+  // ---- images: resized in the browser (max 1400px JPEG) so uploads stay small and fast
+  function resizeImage(file, max = 1400) {
+    return new Promise((resolve, reject) => {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { reject(new Error('فقط تصویر JPG، PNG یا WEBP.')); return; }
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(img.src);
+        resolve(c.toDataURL('image/jpeg', 0.86));
+      };
+      img.onerror = () => reject(new Error('فایل تصویر قابل خواندن نیست.'));
+      img.src = URL.createObjectURL(file);
+    });
+  }
+  async function uploadImage(file) {
+    const r = await api('/api/v1/admin/upload', { method: 'POST', body: { image: await resizeImage(file) } });
+    return r.url;
+  }
+
+  // ---- presets (ready-made terrariums)
+  let presetsCache = [];
+  async function presets() {
+    const [list, cat] = await Promise.all([api('/api/v1/admin/presets'), catalogCache ? Promise.resolve(catalogCache) : api('/api/v1/admin/catalog')]);
+    presetsCache = list;
+    catalogCache = cat;
+    const pc = previewCatalog();
+    content().innerHTML = `
+      <div class="row between wrap gap mb"><h2 style="margin:0">تراریوم‌های آماده</h2><button class="btn primary sm" id="btn-new-preset">+ تراریوم آماده جدید</button></div>
+      <p class="muted">مشتری می‌تواند این‌ها را همان‌طور بخرد، شخصی‌سازی کند یا از صفر بسازد. قیمت از روی قیمت روز اقلام محاسبه می‌شود.</p>
+      <div class="preset-admin-grid">${list.map((p) => `
+        <div class="card preset-admin ${p.is_active ? '' : 'inactive'}">
+          <div class="ph">${p.image_url ? `<img src="${esc(p.image_url)}" alt="">` : window.TerrariumPreview.svg(cartOf(p.configuration), pc)}</div>
+          <div class="row between mt"><b>${esc(p.name)}</b>${p.is_active ? '<span class="badge ok">فعال</span>' : '<span class="badge">پیش‌نویس</span>'}</div>
+          <div class="muted" style="font-size:.85rem">${toman(presetTotal(p))} · ترتیب ${num(p.sort_order)}</div>
+          <div class="row gap-sm mt"><button class="btn sm primary" data-edit="${esc(p.id)}">ویرایش</button><button class="btn sm danger" data-del="${esc(p.id)}">حذف</button></div>
+        </div>`).join('') || '<div class="card muted">هنوز تراریوم آماده‌ای ثبت نشده است.</div>'}</div>`;
+    $('#btn-new-preset').onclick = () => presetModal(null);
+    content().querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => presetModal(presetsCache.find((p) => p.id === b.dataset.edit)));
+    content().querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
+      if (!confirm('این تراریوم آماده حذف شود؟ (سفارش‌های قبلی تغییری نمی‌کنند)')) return;
+      try { await api(`/api/v1/admin/presets/${encodeURIComponent(b.dataset.del)}/delete`, { method: 'POST', body: {} }); toast('حذف شد.'); presets(); }
+      catch (e) { toast(e.message, 'err'); }
+    });
+  }
+
+  const cartOf = (cfg) => {
+    const m = (a) => Object.fromEntries((a || []).map((x) => [x.id, x.quantity]));
+    return { glass: cfg.glass_size_id, plants: m(cfg.plants), stones: m(cfg.stones), figures: m(cfg.figures) };
+  };
+  const previewCatalog = () => ({ glass_sizes: catalogCache.glass_size, plants: catalogCache.plant, stones: catalogCache.stone, figures: catalogCache.figure });
+  function presetTotal(p) {
+    const find = (arr, id) => (arr || []).find((x) => x.id === id);
+    let t = (find(catalogCache.glass_size, p.configuration.glass_size_id) || {}).price_cents || 0;
+    for (const [k, arr] of [['plants', 'plant'], ['stones', 'stone'], ['figures', 'figure']]) {
+      for (const it of p.configuration[k] || []) t += ((find(catalogCache[arr], it.id) || {}).price_cents || 0) * it.quantity;
+    }
+    return t;
+  }
+
+  function presetModal(p) {
+    const cfg = p ? p.configuration : { glass_size_id: (catalogCache.glass_size[0] || {}).id, plants: [], stones: [], figures: [] };
+    const qty = (k, id) => ((cfg[k] || []).find((x) => x.id === id) || {}).quantity || 0;
+    const rowsOf = (k, type) => catalogCache[type].map((x) => `
+      <label class="qty-row ${x.is_active ? '' : 'muted'}"><span>${esc(x.name)}${x.is_active ? '' : ' (غیرفعال)'}</span>
+        <input type="number" min="0" max="20" data-k="${k}" data-id="${esc(x.id)}" value="${qty(k, x.id)}"></label>`).join('');
+    let imageUrl = p ? (p.image_url || '') : '';
+    modal(`
+      <div class="row between"><h2>${p ? 'ویرایش' : 'افزودن'} تراریوم آماده</h2><button class="btn ghost sm" data-close>✕</button></div>
+      <form id="preset-form" class="preset-form">
+        <div class="stack">
+          <label class="field"><span>نام *</span><input type="text" name="name" maxlength="150" required value="${esc(p ? p.name : '')}"></label>
+          <label class="field"><span>توضیحات</span><textarea name="description" maxlength="1000">${esc(p ? p.description || '' : '')}</textarea></label>
+          <div class="grid grid-2">
+            <label class="field"><span>ترتیب نمایش</span><input type="number" name="sort_order" value="${p ? p.sort_order : presetsCache.length + 1}"></label>
+            <label class="checkbox mt"><input type="checkbox" name="is_active" ${!p || p.is_active ? 'checked' : ''}> فعال (نمایش در فروشگاه)</label>
+          </div>
+          <label class="field"><span>ظرف *</span><select name="glass">${catalogCache.glass_size.map((g) => `<option value="${esc(g.id)}" ${g.id === cfg.glass_size_id ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></label>
+          <details open><summary><b>گیاهان</b></summary>${rowsOf('plants', 'plant')}</details>
+          <details><summary><b>بستر و سنگ</b></summary>${rowsOf('stones', 'stone')}</details>
+          <details><summary><b>فیگور و تزئینات</b></summary>${rowsOf('figures', 'figure')}</details>
+        </div>
+        <div class="stack">
+          <div><b>عکس محصول</b>
+            <div class="preset-photo" id="pf-photo"></div>
+            <div class="row gap-sm mt"><label class="btn sm">📷 انتخاب عکس<input type="file" accept="image/jpeg,image/png,image/webp" id="pf-file" hidden></label><button type="button" class="btn ghost sm" id="pf-photo-del">حذف عکس</button></div>
+            <p class="muted" style="font-size:.8rem">اگر عکس نگذارید، پیش‌نمایش طراحی‌شده نمایش داده می‌شود.</p>
+          </div>
+          <div><b>پیش‌نمایش ترکیب</b><div class="preview-box sm" id="pf-preview"></div><div id="pf-total" class="muted mt"></div></div>
+          <div id="pf-err"></div>
+          <button class="btn primary">ذخیره</button>
+        </div>
+      </form>
+    `, (el, close) => {
+      el.classList.add('modal-wide');
+      const form = el.querySelector('#preset-form');
+      const readCfg = () => {
+        const out = { glass_size_id: form.glass.value, plants: [], stones: [], figures: [] };
+        form.querySelectorAll('[data-k]').forEach((i) => { const q = parseInt(i.value, 10) || 0; if (q > 0) out[i.dataset.k].push({ id: i.dataset.id, quantity: q }); });
+        return out;
+      };
+      const refresh = () => {
+        const c = readCfg();
+        el.querySelector('#pf-preview').innerHTML = window.TerrariumPreview.svg(cartOf(c), previewCatalog());
+        el.querySelector('#pf-total').textContent = 'قیمت فعلی: ' + toman(presetTotal({ configuration: c }));
+        el.querySelector('#pf-photo').innerHTML = imageUrl ? `<img src="${esc(imageUrl)}" alt="">` : '<span class="muted">بدون عکس</span>';
+        el.querySelector('#pf-photo-del').classList.toggle('hidden', !imageUrl);
+      };
+      form.addEventListener('input', refresh);
+      el.querySelector('#pf-file').onchange = async (e) => {
+        if (!e.target.files[0]) return;
+        try { el.querySelector('#pf-photo').innerHTML = '<span class="muted">در حال آپلود…</span>'; imageUrl = await uploadImage(e.target.files[0]); }
+        catch (err) { toast(err.message, 'err'); }
+        refresh();
+      };
+      el.querySelector('#pf-photo-del').onclick = () => { imageUrl = ''; refresh(); };
+      refresh();
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        el.querySelector('#pf-err').innerHTML = '';
+        const body = { name: form.name.value, description: form.description.value, sort_order: Number(form.sort_order.value) || 0, is_active: form.is_active.checked, image_url: imageUrl, configuration: readCfg() };
+        try {
+          await api(p ? `/api/v1/admin/presets/${encodeURIComponent(p.id)}` : '/api/v1/admin/presets', { method: 'POST', body });
+          toast('ذخیره شد.'); close(); presets();
+        } catch (err) { el.querySelector('#pf-err').innerHTML = `<div class="alert err">${esc(err.message)}</div>`; }
+      };
+    });
   }
 
   function newItemModal() {

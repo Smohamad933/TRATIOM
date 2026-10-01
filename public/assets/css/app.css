@@ -187,3 +187,51 @@ table.table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .tabs button { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); background: #fff; font: inherit; font-weight: 700; cursor: pointer; color: var(--muted); }
 .tabs button.active { background: var(--text); border-color: var(--text); color: #fff; }
 pre.json { background: #1c2a1f; color: #d7f0dd; padding: 12px; border-radius: 10px; overflow: auto; font-size: .8rem; direction: ltr; text-align: left; max-height: 320px; }
+
+/* presets */
+.mb-lg { margin-bottom: 28px; }
+.preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.preset { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; transition: box-shadow .2s, border-color .2s; }
+.preset:hover { box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+.preset.active { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-50); }
+.preset .ph { aspect-ratio: 1 / 1; background: #eef3ef; display: grid; place-items: center; overflow: hidden; }
+.preset .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.preset .ph .terrarium-svg { width: 80%; height: auto; }
+.preset .body { padding: 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.preset .desc { font-size: .85rem; color: var(--muted); }
+.preset .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.preset .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; padding-top: 8px; }
+.preset.scratch .ph { font-size: 64px; background: linear-gradient(135deg, #eef7f0, #f8f3e8); }
+.based-on { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+/* item photos */
+.option .thumb { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; background: #eef3ef; }
+/* preview */
+.preview-box { background: linear-gradient(180deg, #f7fbf8, #eef4ef); border-radius: 12px; display: grid; place-items: center; padding: 6px; }
+.preview-box .terrarium-svg { width: 100%; max-width: 300px; height: auto; display: block; }
+.preview-box.sm .terrarium-svg { max-width: 200px; }
+.preview-box.lg .terrarium-svg { max-width: 420px; }
+.modal-wide { max-width: 900px; }
+.final-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 760px) { .final-grid { grid-template-columns: 1fr; } }
+.final-photo { width: 100%; border-radius: 12px; display: block; }
+.tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.tab { flex: 1; border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 8px; cursor: pointer; font: inherit; }
+.tab.active { border-color: var(--primary); background: var(--primary-50); font-weight: 700; }
+.final-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--border); }
+.final-item img, .final-item .ic { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; flex: none; display: grid; place-items: center; background: #eef3ef; font-size: 22px; }
+.final-item .nm { flex: 1; font-size: .9rem; }
+
+/* admin: presets & images */
+.img-cell { display: flex; align-items: center; gap: 4px; }
+.img-cell img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; }
+.preset-admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.preset-admin .ph { aspect-ratio: 1 / 1; border-radius: 10px; overflow: hidden; background: #eef3ef; display: grid; place-items: center; }
+.preset-admin .ph img { width: 100%; height: 100%; object-fit: cover; }
+.preset-admin .ph .terrarium-svg { width: 80%; }
+.preset-admin.inactive { opacity: .65; }
+.preset-form { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; margin-top: 12px; }
+@media (max-width: 760px) { .preset-form { grid-template-columns: 1fr; } }
+.qty-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; font-size: .9rem; }
+.qty-row input { width: 70px; }
+.preset-photo { margin-top: 6px; aspect-ratio: 4 / 3; border-radius: 10px; background: #eef3ef; display: grid; place-items: center; overflow: hidden; }
+.preset-photo img { width: 100%; height: 100%; object-fit: cover; }

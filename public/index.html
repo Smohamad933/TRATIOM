@@ -26,9 +26,17 @@
     <!-- Configurator -->
     <section id="view-builder">
       <div class="hero">
-        <h1>تراریوم اختصاصی‌ات را بساز 🌿</h1>
-        <p class="muted">ظرف، گیاهان، بستر و تزئینات را انتخاب کن. سیستم به‌صورت خودکار سازگاری گیاهان، حجم و ظرفیت ظرف را بررسی می‌کند.</p>
+        <h1>تراریوم دلخواهت را انتخاب کن یا بساز 🌿</h1>
+        <p class="muted">یکی از تراریوم‌های آماده را همان‌طور بخر، بخشی از آن را تغییر بده، یا از صفر بساز. سیستم سازگاری گیاهان، حجم و ظرفیت ظرف را خودکار بررسی می‌کند.</p>
       </div>
+
+      <section class="mb-lg" id="presets-section">
+        <div class="row between wrap gap"><h2>تراریوم‌های آماده</h2></div>
+        <div class="preset-grid mt" id="presets"><p class="muted">در حال بارگذاری…</p></div>
+      </section>
+
+      <div id="builder-anchor"></div>
+      <div id="based-on"></div>
       <div class="layout">
         <div class="stack">
           <div class="card">
@@ -50,10 +58,14 @@
         </div>
 
         <aside class="sticky">
-          <div class="card">
+          <div class="card preview-card">
+            <div class="row between"><h3>پیش‌نمایش زنده</h3><span class="muted" style="font-size:.8rem">با هر انتخاب به‌روز می‌شود</span></div>
+            <div id="live-preview" class="preview-box"></div>
+          </div>
+          <div class="card mt">
             <h3>خلاصه تراریوم شما</h3>
             <div id="summary"><p class="muted">ابتدا یک ظرف انتخاب کنید.</p></div>
-            <button id="btn-checkout" class="btn primary block mt" disabled>ادامه و ثبت سفارش</button>
+            <button id="btn-checkout" class="btn primary block mt" disabled>👁 مشاهده نسخه نهایی و ثبت سفارش</button>
           </div>
         </aside>
       </div>
@@ -80,7 +92,7 @@
             <a class="btn" href="#/">بازگشت و ویرایش</a>
           </div>
         </form>
-        <aside class="sticky"><div class="card"><h3>فاکتور</h3><div id="checkout-summary"></div></div></aside>
+        <aside class="sticky"><div class="card"><h3>تراریوم شما</h3><div id="checkout-preview" class="preview-box sm"></div><h3 class="mt">فاکتور</h3><div id="checkout-summary"></div></div></aside>
       </div>
     </section>
 
@@ -97,6 +109,30 @@
   </main>
 
   <footer class="footer">© تراریوم — ساخته‌شده با 🌱</footer>
+
+  <!-- Final preview -->
+  <div id="final-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="final-title">
+    <div class="modal modal-wide">
+      <div class="row between"><h2 id="final-title">نسخه نهایی تراریوم شما</h2><button class="btn ghost sm" data-close>✕</button></div>
+      <div class="final-grid mt">
+        <div>
+          <div class="tabs hidden" id="final-tabs">
+            <button type="button" class="tab active" data-view="render">🎨 پیش‌نمایش ترکیب شما</button>
+            <button type="button" class="tab" data-view="photo">📷 عکس نمونه</button>
+          </div>
+          <div id="final-render" class="preview-box lg"></div>
+          <img id="final-photo" class="final-photo hidden" alt="">
+          <p class="muted mt" style="font-size:.8rem" id="final-note"></p>
+        </div>
+        <div class="stack">
+          <div id="final-items"></div>
+          <div id="final-price"></div>
+          <button class="btn primary block" id="btn-final-ok">✅ تأیید و ادامه خرید</button>
+          <button class="btn block" data-close>✏️ بازگشت و ویرایش</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Login modal -->
   <div id="login-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="login-title">
@@ -130,6 +166,7 @@
   </div>
 
   <script src="/assets/js/common.js"></script>
+  <script src="/assets/js/preview.js"></script>
   <script src="/assets/js/store.js"></script>
 </body>
 </html>

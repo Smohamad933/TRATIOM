@@ -597,3 +597,155 @@ body::after  { width: 480px; height: 480px; bottom: -150px; left: -130px;
 .modal { background: var(--glass-bg-strong); -webkit-backdrop-filter: blur(22px) saturate(150%); backdrop-filter: blur(22px) saturate(150%); border: 1px solid var(--glass-brd); }
 .mobile-bar { background: rgba(255, 255, 255, .6); -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%); }
 
+
+/* =====================================================================
+   SHARED TERRARIUM PALETTE + APPLE-INSPIRED CORNER SYSTEM
+   Shared by storefront and admin, at every viewport size.
+   ===================================================================== */
+:root {
+  /* Living greens, greenhouse glass, warm soil and stone */
+  --bg: #f2f5ec;
+  --surface: #fcfdf9;
+  --surface-2: #e8efe3;
+  --border: #d6e0d3;
+  --text: #20352a;
+  --muted: #617164;
+  --primary: #386b4d;
+  --primary-600: #2b573e;
+  --primary-50: #e6efe4;
+  --accent: #946344;
+  --ink: #20352a;
+  --terrarium-forest: #1d3d2c;
+  --terrarium-moss: #78865d;
+  --terrarium-sage: #aabd9f;
+  --terrarium-glass: rgba(195, 222, 210, .68);
+  --terrarium-earth: #b6815b;
+  --terrarium-sand: #e8dcc1;
+  --grad: linear-gradient(135deg, #2b593e 0%, #4c7953 56%, #9cad80 100%);
+
+  /* Apple-like radii: precise controls, soft cards, generous sheets */
+  --radius-control: 12px;
+  --radius-button: 14px;
+  --radius-inner: 16px;
+  --radius-surface: 20px;
+  --radius-card: 24px;
+  --radius-sheet: 28px;
+  --radius: var(--radius-card);
+
+  --shadow: 0 1px 2px rgba(29, 61, 44, .04), 0 12px 32px -12px rgba(43, 78, 53, .17);
+  --shadow-lg: 0 24px 64px -20px rgba(29, 61, 44, .30);
+  --glass-bg: rgba(248, 251, 245, .68);
+  --glass-bg-strong: rgba(251, 253, 248, .84);
+  --glass-brd: rgba(255, 255, 255, .76);
+  --glass-blur: 18px;
+}
+
+body {
+  color: var(--text);
+  background:
+    radial-gradient(1000px 600px at 105% -10%, rgba(174, 203, 171, .52) 0%, transparent 62%),
+    radial-gradient(720px 480px at -12% 28%, rgba(232, 220, 193, .62) 0%, transparent 62%),
+    radial-gradient(850px 560px at 82% 105%, rgba(195, 222, 210, .42) 0%, transparent 65%),
+    var(--bg);
+  background-attachment: fixed;
+}
+body::before { background: radial-gradient(circle at 35% 35%, var(--terrarium-sage), transparent 70%); opacity: .28; }
+body::after { background: radial-gradient(circle at 65% 65%, var(--terrarium-sand), transparent 70%); opacity: .30; }
+a { color: var(--primary); }
+:focus-visible { outline: 3px solid rgba(120, 145, 93, .55); outline-offset: 2px; }
+
+.topbar {
+  background: rgba(249, 252, 246, .78);
+  border-bottom-color: rgba(43, 78, 53, .11);
+}
+.topbar nav .btn.ghost { color: var(--primary-600); }
+.topbar nav .btn.ghost:hover { background: rgba(56, 107, 77, .09); }
+.brand-logo { box-shadow: 0 6px 18px -5px rgba(43, 89, 62, .42); }
+.btn.primary { box-shadow: 0 8px 20px -8px rgba(43, 89, 62, .48); }
+.btn.primary:hover { box-shadow: 0 12px 26px -8px rgba(43, 89, 62, .55); }
+.card { border-color: var(--glass-brd); }
+.hero-text p { color: var(--muted); }
+.hero-band {
+  border-color: rgba(113, 143, 105, .20);
+  background:
+    radial-gradient(100% 130% at 100% 0%, rgba(195, 222, 210, .74) 0%, transparent 58%),
+    linear-gradient(135deg, #f0f5eb 0%, #f4efdf 100%);
+}
+.hero-stats { background: var(--glass-bg); border-color: var(--glass-brd); }
+.hero-stats div:first-child b { color: var(--accent); }
+.float-chip { background: rgba(251, 253, 248, .90); }
+.feat { border-color: var(--glass-brd); }
+.feat .fi { color: var(--terrarium-moss); }
+.preset { border-color: var(--glass-brd); }
+.preset.scratch {
+  border-color: rgba(182, 129, 91, .42);
+  background: linear-gradient(150deg, #f0f6ed 0%, #f5efdf 100%);
+}
+.option:hover:not(.disabled) { border-color: #9bb79b; }
+.option.selected {
+  background: linear-gradient(155deg, rgba(226, 239, 226, .92), rgba(252, 253, 249, .90) 70%);
+  box-shadow: 0 0 0 4px rgba(56, 107, 77, .13), var(--shadow);
+}
+.option.selected::after { box-shadow: 0 4px 10px -2px rgba(43, 89, 62, .42); }
+.option .art {
+  background: radial-gradient(circle at 50% 70%, #fcfdf9 0%, var(--terrarium-glass) 100%);
+}
+.option .qty { border-color: #cbdccf; background: rgba(252, 253, 249, .88); }
+.qty button:hover { background: #d9e8d9; }
+.preview-card { background: var(--glass-bg-strong); }
+.preview-box {
+  background: radial-gradient(circle at 50% 75%, #fcfdf9 0%, var(--terrarium-glass) 100%);
+}
+@media (min-width: 961px) {
+  #btn-checkout { box-shadow: 0 -10px 20px 6px rgba(242, 245, 236, .94), 0 8px 20px -8px rgba(43, 89, 62, .55); }
+}
+
+/* Shared admin/store surfaces */
+.tabs button { background: var(--glass-bg-strong); border-color: var(--border); }
+.tabs button.active { color: #fff; }
+.table-wrap {
+  border: 1px solid var(--border);
+  background: var(--glass-bg-strong);
+}
+.table th { background: rgba(232, 239, 227, .58); }
+.side-nav button:hover { background: rgba(232, 239, 227, .78); }
+@media (max-width: 860px) {
+  .side-nav { background: rgba(242, 245, 236, .88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+}
+
+.site-footer { background: var(--terrarium-forest); color: #d0dfd2; }
+.site-footer a, .site-footer span:not(.brand-logo) { color: #c5d7c8; }
+.site-footer .brand span { color: #fff; }
+.site-footer .copy { border-top-color: rgba(231, 241, 230, .12); color: #9db5a2; }
+.mobile-bar {
+  background: var(--glass-bg-strong);
+  border-top-color: rgba(56, 107, 77, .16);
+  box-shadow: 0 -8px 28px rgba(29, 61, 44, .12);
+}
+.mb-preview { background: var(--terrarium-glass); }
+
+/* Apple-inspired corner scale across both mobile and desktop */
+.card, .preset, .hero-band, .preview-card, .stat { border-radius: var(--radius-card); }
+.feat, .based-on, .hero-stats, .table-wrap { border-radius: var(--radius-surface); }
+.option { border-radius: var(--radius-surface); }
+.modal { border-radius: var(--radius-sheet); }
+.btn, .btn.sm, .btn.lg, .topbar nav .btn.ghost, .side-nav button { border-radius: var(--radius-button); }
+input:not([type]), input[type=password], input[type=url], input[type=text], input[type=tel],
+input[type=number], input[type=search], input[type=date], input[type=datetime-local], select, textarea,
+.tab, .tabs .tab, .tabs button, .qty, .option .dims { border-radius: var(--radius-control); }
+.brand-logo, .float-chip { border-radius: var(--radius-button); }
+.card-title h2 .num, .option .art, .preview-box, .mb-preview, .feat .fi,
+.option .thumb, .preset-admin .ph, .preset-photo, .font-preview, .img-cell img,
+.final-item img, .final-item .ic { border-radius: var(--radius-inner); }
+.hero-art img { border-radius: var(--radius-card); }
+.toast, .alert { border-radius: var(--radius-inner); }
+.modal-backdrop .modal { background: var(--glass-bg-strong); border-color: var(--glass-brd); }
+
+@media (max-width: 960px) {
+  .mobile-bar { border-radius: var(--radius-card) var(--radius-card) 0 0; }
+}
+@media (max-width: 640px) {
+  .card { border-radius: var(--radius-card); }
+  .option { border-radius: var(--radius-surface); }
+  .modal { border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; }
+}

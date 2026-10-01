@@ -73,7 +73,7 @@ $defaults = [
     'sms_provider' => ($current['SMS_DEFAULT_PROVIDER'] ?? 'log') === 'kavenegar' ? 'kavenegar' : 'log',
     'sms_key' => $current['SMS_API_KEY'] ?? '',
     'sms_template' => $current['SMS_OTP_TEMPLATE'] ?? 'verify',
-    'gateway' => 'zarinpal',
+    'gateway' => 'bale',
     'merchant' => '',
     'sandbox' => '',
     'shipping' => '50000',
@@ -145,7 +145,7 @@ function buildEnv(array $in, string $template, string $existingKey): string
 {
     $gw = $in['gateway'];
     $baleUser = $in['bale_username'] ?? '';
-    $balePay = $in['bale_pay'] && $in['bale_token'] !== '' && $in['bale_wallet'] !== '';
+    $balePay = $gw !== 'bale' && $in['bale_pay'] && $in['bale_token'] !== '' && $in['bale_wallet'] !== '';
     $values = [
         'APP_ENV' => $in['app_env'] === 'local' ? 'local' : 'production',
         'APP_DEBUG' => 'false',
@@ -170,7 +170,7 @@ function buildEnv(array $in, string $template, string $existingKey): string
         'BALE_BOT_USERNAME' => $baleUser,
         'BALE_WALLET_TOKEN' => $in['bale_wallet'],
         'BALE_SAFIR_API_KEY' => $in['bale_safir'],
-        'BALE_OTP_ENABLED' => $in['bale_otp'] && $in['bale_safir'] !== '' ? 'true' : 'false',
+        'BALE_OTP_ENABLED' => 'false',
     ];
     $sandbox = $in['sandbox'] ? 'true' : 'false';
     if ($gw === 'zarinpal') { $values += ['ZARINPAL_MERCHANT_ID' => $in['merchant'], 'ZARINPAL_SANDBOX' => $sandbox]; }
@@ -196,6 +196,7 @@ if (!$locked && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $mobile = $in['admin_mobile'] !== '' ? OtpService::normalizeMobile($in['admin_mobile']) : '';
         if ($action === 'install' && $mobile === '') { throw new RuntimeException('شماره موبایل مدیر را وارد کنید.'); }
         $in['admin_mobile'] = $mobile;
+        if ($action === 'install' && $in['gateway'] === 'bale' && ($in['bale_token'] === '' || $in['bale_wallet'] === '')) { throw new RuntimeException('برای پرداخت با کیف پول بله، «توکن ربات» و «توکن کیف پول» را در بخش ربات بله وارد کنید.'); }
         if ($action === 'install' && !preg_match('#^https?://[^/\s]+$#', rtrim($in['app_url'], '/'))) { throw new RuntimeException('آدرس سایت باید مثل https://example.ir باشد.'); }
 
         $db = connectAndCreate($in, $base, $log);
@@ -370,7 +371,7 @@ $sel = fn (string $k, string $v) => $in[$k] === $v ? 'selected' : '';
     </fieldset>
 
     <fieldset class="fs">
-      <legend>پیامک ورود (OTP)</legend>
+      <legend>پیامک ورود (فقط اگر ربات بله تنظیم نشود)</legend>
       <div class="grid-form">
         <label class="full">سرویس
           <select name="sms_provider" id="sms_provider">
@@ -388,6 +389,7 @@ $sel = fn (string $k, string $v) => $in[$k] === $v ? 'selected' : '';
       <div class="grid-form">
         <label>درگاه
           <select name="gateway" id="gateway">
+            <option value="bale" <?= $sel('gateway', 'bale') ?>>کیف پول بله (از طریق ربات بله)</option>
             <option value="zarinpal" <?= $sel('gateway', 'zarinpal') ?>>زرین‌پال</option>
             <option value="zibal" <?= $sel('gateway', 'zibal') ?>>زیبال</option>
             <option value="idpay" <?= $sel('gateway', 'idpay') ?>>آیدی‌پی</option>
@@ -400,13 +402,13 @@ $sel = fn (string $k, string $v) => $in[$k] === $v ? 'selected' : '';
     </fieldset>
 
     <fieldset class="fs">
-      <legend>ربات بله (اختیاری)</legend>
+      <legend>ربات بله — ورود و پرداخت</legend>
       <div class="grid-form">
         <label class="full">توکن ربات (از @botfather در بله) <input name="bale_token" dir="ltr" placeholder="123456789:AbCd..." value="<?= h($in['bale_token']) ?>"></label>
         <label>کلید API سفیر (ارسال پیام بدون استارت) <input name="bale_safir" dir="ltr" value="<?= h($in['bale_safir']) ?>"></label>
         <label>توکن کیف پول (پرداخت) <input name="bale_wallet" dir="ltr" placeholder="WALLET-..." value="<?= h($in['bale_wallet']) ?>"></label>
-        <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="bale_otp" style="width:auto" <?= $in['bale_otp'] ? 'checked' : '' ?>> کد ورود فقط از طریق ربات بله ارسال شود (بدون پیامک)</label>
-        <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="bale_pay" style="width:auto" <?= $in['bale_pay'] ? 'checked' : '' ?>> پرداخت با کیف پول بله هم فعال باشد</label>
+        <p class="full fix">با وارد کردن توکن ربات، ورود سایت با «تأیید در ربات بله» انجام می‌شود (بدون کد و پیامک). سفیر اختیاری است: فقط برای ارسال خودکار پیام پرداخت به کسی که ربات را استارت نکرده.</p>
+        <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="bale_pay" style="width:auto" <?= $in['bale_pay'] ? 'checked' : '' ?>> اگر درگاه دیگری انتخاب شد، کیف پول بله هم کنارش فعال باشد</label>
       </div>
     </fieldset>
 
@@ -424,7 +426,7 @@ $sel = fn (string $k, string $v) => $in[$k] === $v ? 'selected' : '';
     document.querySelectorAll('.my').forEach(e => e.classList.toggle('hidden', !my));
     const kv = document.getElementById('sms_provider')?.value === 'kavenegar';
     document.querySelectorAll('.kv').forEach(e => e.classList.toggle('hidden', !kv));
-    const gw = document.getElementById('gateway')?.value !== 'test';
+    const gv = document.getElementById('gateway')?.value; const gw = gv !== 'test' && gv !== 'bale';
     document.querySelectorAll('.gw').forEach(e => e.classList.toggle('hidden', !gw));
   };
   document.querySelectorAll('select').forEach(s => s.addEventListener('change', toggle));

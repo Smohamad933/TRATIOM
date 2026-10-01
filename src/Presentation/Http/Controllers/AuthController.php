@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Terrarium\Presentation\Http\Controllers;
 
 use Terrarium\Application\UseCases\Auth\OtpService;
+use Terrarium\Application\UseCases\Auth\BaleLoginService;
+use Terrarium\Infrastructure\Http\HttpException;
 use Terrarium\Infrastructure\Http\Request;
 use Terrarium\Infrastructure\Http\Response;
 use Terrarium\Infrastructure\Persistence\Repositories\TokenRepository;
@@ -15,8 +17,36 @@ final class AuthController
 {
     public function __construct(private readonly Application $app) {}
 
+    public function methods(Request $r): Response
+    {
+        return Response::json(['success' => true, 'data' => ['method' => $this->app->authMethod()]]);
+    }
+
+    public function baleStart(Request $r): Response
+    {
+        $this->requireBale();
+        $mobile = $r->input('mobile');
+        return Response::json(['success' => true, 'data' => $this->app->get(BaleLoginService::class)->start(is_string($mobile) ? $mobile : null, $r->ip)]);
+    }
+
+    public function balePoll(Request $r): Response
+    {
+        $this->requireBale();
+        return Response::json(['success' => true, 'data' => $this->app->get(BaleLoginService::class)->poll((string) $r->input('token', ''))]);
+    }
+
+    private function requireBale(): void
+    {
+        if ($this->app->authMethod() !== 'bale') {
+            throw HttpException::notFound('ورود با بله فعال نیست.');
+        }
+    }
+
     public function requestOtp(Request $r): Response
     {
+        if ($this->app->authMethod() === 'bale') {
+            throw HttpException::badRequest('ورود فقط از طریق ربات بله انجام می‌شود. صفحه را تازه کنید (Ctrl+F5).');
+        }
         $mobile = $r->requireString('mobile', 'شماره موبایل', 20);
         // Expose the code in the response only for local development with the log SMS driver
         $expose = !$this->app->isProduction() && $this->app->config->get('sms.default') === 'log';
@@ -30,6 +60,9 @@ final class AuthController
 
     public function verifyOtp(Request $r): Response
     {
+        if ($this->app->authMethod() === 'bale') {
+            throw HttpException::badRequest('ورود فقط از طریق ربات بله انجام می‌شود.');
+        }
         $res = $this->app->get(OtpService::class)->verifyCode(
             $r->requireString('mobile', 'شماره موبایل', 20),
             $r->requireString('code', 'کد تأیید', 10)

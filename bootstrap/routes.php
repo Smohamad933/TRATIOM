@@ -36,6 +36,9 @@ return static function (Application $app): Router {
     $r->post('/api/v1/configurator/validate', [$catalog, 'validate']);
 
     // Auth (OTP)
+    $r->get('/api/v1/auth/methods', [$authC, 'methods']);
+    $r->post('/api/v1/auth/bale/start', [$authC, 'baleStart']);
+    $r->post('/api/v1/auth/bale/poll', [$authC, 'balePoll']);
     $r->post('/api/v1/auth/otp/request', [$authC, 'requestOtp']);
     $r->post('/api/v1/auth/otp/verify', [$authC, 'verifyOtp']);
     $r->get('/api/v1/auth/me', [$authC, 'me'], $auth);

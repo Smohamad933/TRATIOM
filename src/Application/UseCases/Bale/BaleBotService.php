@@ -14,6 +14,7 @@ use Terrarium\Infrastructure\Gateways\BaleGateway;
 use Terrarium\Infrastructure\Logging\Logger;
 use Terrarium\Infrastructure\Persistence\Database;
 use Terrarium\Infrastructure\Persistence\Repositories\BaleChatRepository;
+use Terrarium\Infrastructure\Persistence\Repositories\BaleLoginRepository;
 use Terrarium\Infrastructure\Persistence\Repositories\OrderRepository;
 use Terrarium\Infrastructure\Persistence\Repositories\PaymentRepository;
 use Terrarium\Infrastructure\Persistence\Repositories\UserRepository;
@@ -45,7 +46,8 @@ final class BaleBotService
         private readonly PaymentCallbackService $callback,
         private readonly Database $db,
         private readonly string $appUrl,
-        private readonly Logger $logger
+        private readonly Logger $logger,
+        private readonly ?BaleLoginRepository $logins = null
     ) {}
 
     /** @param array<string, mixed> $u a Bale Update object */
@@ -99,6 +101,10 @@ final class BaleBotService
         if (empty($chat['mobile'])) {
             $this->chats->setPending($chatId, $payload !== '' ? mb_substr($payload, 0, 100) : null);
             $this->askContact($chatId, (string) ($chat['first_name'] ?? ''));
+            return;
+        }
+        if (str_starts_with($payload, 'login_')) {
+            $this->askLoginConfirm($chat, substr($payload, 6));
             return;
         }
         if (str_starts_with($payload, 'pay_')) {
@@ -162,6 +168,8 @@ final class BaleBotService
             $data === 'pending' => $this->showOrders($chat, $messageId, true),
             $data === 'orders' => $this->showOrders($chat, $messageId, false),
             str_starts_with($data, 'pay:') => $this->payOrder($chat, substr($data, 4)),
+            str_starts_with($data, 'la:') => $this->decideLogin($chat, substr($data, 3), true, $messageId),
+            str_starts_with($data, 'ld:') => $this->decideLogin($chat, substr($data, 3), false, $messageId),
             default => $this->showMenu($chat, $messageId),
         };
     }
@@ -207,6 +215,49 @@ final class BaleBotService
         $kb[] = $back;
         $title = $onlyPending ? '💳 سفارش‌های در انتظار پرداخت:' : '📦 سفارش‌های شما:';
         $this->reply((int) $chat['chat_id'], $title . "\n\n" . implode("\n", $lines), ['inline_keyboard' => $kb], $editMessageId);
+    }
+
+    // ------------------------------------------------------------------ website login
+
+    private function loginRow(array $chat, string $token, ?int $editId): ?array
+    {
+        $row = $this->logins !== null && preg_match('/^[a-f0-9]{32}$/', $token) ? $this->logins->find($token) : null;
+        if ($row === null || $row['status'] !== 'pending' || BaleLoginRepository::expired($row)) {
+            $this->reply((int) $chat['chat_id'], "⌛️ این درخواست ورود منقضی شده یا قبلاً استفاده شده است.\nدر سایت دوباره «ورود با بله» را بزنید.", ['inline_keyboard' => [[['text' => '🌐 رفتن به سایت', 'url' => $this->appUrl . '/']]]], $editId);
+            return null;
+        }
+        if (!empty($row['mobile']) && $row['mobile'] !== $chat['mobile']) {
+            $this->reply((int) $chat['chat_id'], "⚠️ این درخواست برای شماره {$row['mobile']} است، ولی حساب بله شما {$chat['mobile']} است.", null, $editId);
+            return null;
+        }
+        return $row;
+    }
+
+    private function askLoginConfirm(array $chat, string $token): void
+    {
+        if ($this->loginRow($chat, $token, null) === null) {
+            return;
+        }
+        $this->bot->sendMessage((int) $chat['chat_id'], "🔐 درخواست ورود به سایت تراریوم\nشماره: {$chat['mobile']}\n\nاگر خودتان در سایت «ورود با بله» را زده‌اید، تأیید کنید.", [
+            'inline_keyboard' => [
+                [['text' => '✅ تأیید ورود', 'callback_data' => 'la:' . $token]],
+                [['text' => '❌ من نبودم', 'callback_data' => 'ld:' . $token]],
+            ],
+        ]);
+    }
+
+    private function decideLogin(array $chat, string $token, bool $approve, ?int $editId): void
+    {
+        if ($this->loginRow($chat, $token, $editId) === null) {
+            return;
+        }
+        if (!$this->logins->decide($token, $approve, (string) $chat['mobile'], (int) $chat['chat_id'])) {
+            $this->reply((int) $chat['chat_id'], '⌛️ این درخواست ورود دیگر معتبر نیست.', null, $editId);
+            return;
+        }
+        $approve
+            ? $this->reply((int) $chat['chat_id'], "✅ ورود تأیید شد.\nبه سایت برگردید؛ به‌صورت خودکار وارد می‌شوید.", ['inline_keyboard' => [[['text' => '🌐 بازگشت به سایت', 'url' => $this->appUrl . '/']], [['text' => '📋 منو', 'callback_data' => 'menu']]]], $editId)
+            : $this->reply((int) $chat['chat_id'], '❌ درخواست ورود رد شد. کسی وارد حساب شما نشد.', ['inline_keyboard' => [[['text' => '📋 منو', 'callback_data' => 'menu']]]], $editId);
     }
 
     // ------------------------------------------------------------------ payment
@@ -340,7 +391,7 @@ final class BaleBotService
         return $user !== null && !empty($chat['mobile']) && hash_equals((string) $user['mobile'], (string) $chat['mobile']);
     }
 
-    private function reply(int $chatId, string $text, array $markup, ?int $editMessageId): void
+    private function reply(int $chatId, string $text, ?array $markup, ?int $editMessageId): void
     {
         if ($editMessageId !== null) {
             try {

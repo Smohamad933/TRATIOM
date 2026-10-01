@@ -102,6 +102,14 @@
   <div id="login-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="login-title">
     <div class="modal">
       <div class="row between"><h2 id="login-title">ورود / ثبت‌نام</h2><button class="btn ghost sm" data-close>✕</button></div>
+      <div id="login-bale" class="stack hidden" style="text-align:center">
+        <div style="font-size:2.6rem">🤖</div>
+        <p>برای ورود، دکمه زیر را بزنید و در ربات <b>«بله»</b> روی <b>«✅ تأیید ورود»</b> بزنید.</p>
+        <p class="muted" style="font-size:.85rem">بار اول، ربات یک‌بار شماره موبایلتان را می‌پرسد. نیازی به کد یا پیامک نیست.</p>
+        <a id="login-bale-link" class="btn primary block" target="_blank" rel="noopener" aria-disabled="true">در حال آماده‌سازی…</a>
+        <p id="login-bale-wait" class="muted hidden" style="font-size:.85rem">⏳ منتظر تأیید شما در بله… (بعد از تأیید به این صفحه برگردید)</p>
+        <button class="btn ghost sm hidden" type="button" id="login-bale-retry">تلاش دوباره</button>
+      </div>
       <form id="login-step-mobile" class="stack">
         <p class="muted">شماره موبایل خود را وارد کنید تا کد تأیید برایتان ارسال شود.</p>
         <label class="field"><span>شماره موبایل</span><input type="tel" name="mobile" class="ltr" style="width:100%" placeholder="09121234567" required autocomplete="tel"></label>

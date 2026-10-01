@@ -1,7 +1,7 @@
 /* Admin panel — talks to /api/v1/admin/* with the admin's bearer token. */
 (function () {
   'use strict';
-  const { api, auth, toman, rial, num, esc, toast, fmtDate, ORDER_STATUS, GATEWAY_LABEL, LEVEL } = window.T;
+  const { authMethod, baleLogin, api, auth, toman, rial, num, esc, toast, fmtDate, ORDER_STATUS, GATEWAY_LABEL, LEVEL } = window.T;
   const $ = (s, el = document) => el.querySelector(s);
   const content = () => $('#content');
 
@@ -12,10 +12,43 @@
 
   // ------------------------------------------------------------------ auth
 
-  function showLogin() {
+  let stopBale = null;
+  async function showLogin() {
     $('#login-view').classList.remove('hidden');
     $('#app-view').classList.add('hidden');
     $('#admin-user').innerHTML = '';
+    if (await authMethod() === 'bale') {
+      $('#lg-mobile').classList.add('hidden');
+      $('#lg-code').classList.add('hidden');
+      $('#lg-bale').classList.remove('hidden');
+      startBale();
+    }
+  }
+
+  function startBale() {
+    const link = $('#lg-bale-link');
+    link.removeAttribute('href');
+    link.textContent = 'در حال آماده‌سازی…';
+    $('#lg-error').innerHTML = '';
+    $('#lg-bale-retry').classList.add('hidden');
+    if (stopBale) stopBale();
+    stopBale = baleLogin({
+      onLink: (url) => { link.href = url; link.textContent = '🤖 ورود با بله'; },
+      onDone: (r) => {
+        if (!r.user.is_admin) {
+          $('#lg-error').innerHTML = `<div class="alert err">شماره ${esc(r.user.mobile)} دسترسی مدیریت ندارد.</div>`;
+          $('#lg-bale-retry').classList.remove('hidden');
+          return;
+        }
+        auth.set(r.token, r.user);
+        showApp();
+      },
+      onFail: (msg) => {
+        $('#lg-error').innerHTML = `<div class="alert err">${esc(msg)}</div>`;
+        $('#lg-bale-wait').classList.add('hidden');
+        $('#lg-bale-retry').classList.remove('hidden');
+      },
+    });
   }
 
   function showApp() {
@@ -27,6 +60,8 @@
 
   function bindLogin() {
     let mobile = '';
+    $('#lg-bale-link').addEventListener('click', () => $('#lg-bale-wait').classList.remove('hidden'));
+    $('#lg-bale-retry').addEventListener('click', startBale);
     $('#lg-mobile').addEventListener('submit', async (e) => {
       e.preventDefault();
       $('#lg-error').innerHTML = '';

@@ -41,6 +41,8 @@ use Terrarium\Infrastructure\Bale\SafirClient;
 use Terrarium\Infrastructure\Gateways\BaleGateway;
 use Terrarium\Infrastructure\Persistence\Repositories\BaleChatRepository;
 use Terrarium\Application\UseCases\Bale\BaleBotService;
+use Terrarium\Application\UseCases\Auth\BaleLoginService;
+use Terrarium\Infrastructure\Persistence\Repositories\BaleLoginRepository;
 use Terrarium\Support\Config;
 use Throwable;
 
@@ -153,7 +155,17 @@ final class Application
                 $this->get(PaymentCallbackService::class),
                 $this->get(Database::class),
                 rtrim((string) $c->get('app.url'), '/'),
-                $this->get(Logger::class)
+                $this->get(Logger::class),
+                $this->get(BaleLoginRepository::class)
+            ),
+            BaleLoginRepository::class => new BaleLoginRepository($this->get(Database::class)),
+            BaleLoginService::class => new BaleLoginService(
+                $this->get(BaleLoginRepository::class),
+                $this->get(UserRepository::class),
+                $this->get(TokenRepository::class),
+                $this->get(BaleGateway::class),
+                (int) $c->get('app.token_ttl_days', 30),
+                (array) $c->get('app.admin_mobiles', [])
             ),
             default => throw new InvalidArgumentException("Unknown service {$id}"),
         };
@@ -220,6 +232,12 @@ final class Application
             throw new ValidationException('درگاه پرداخت انتخاب‌شده در دسترس نیست.', ['field' => 'gateway']);
         }
         return $this->gatewayInstance($name);
+    }
+
+    /** Login method shown on the site: "bale" (confirm in the bot) when the bot token is set, otherwise SMS code. */
+    public function authMethod(): string
+    {
+        return (string) $this->config->get('bale.bot_token', '') !== '' ? 'bale' : 'otp';
     }
 
     /** Secret path segment of the Bale webhook URL (Bale sends no signature header). */

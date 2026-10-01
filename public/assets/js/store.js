@@ -1,7 +1,7 @@
 /* Storefront: configurator, OTP login, checkout, orders. */
 (function () {
   'use strict';
-  const { api, auth, toman, num, esc, toast, fmtDate, debounce, ORDER_STATUS, GATEWAY_LABEL, LEVEL } = window.T;
+  const { authMethod, baleLogin, api, auth, toman, num, esc, toast, fmtDate, debounce, ORDER_STATUS, GATEWAY_LABEL, LEVEL } = window.T;
   const $ = (s, el = document) => el.querySelector(s);
 
   const CART_KEY = 'terrarium_cart';
@@ -152,8 +152,42 @@
 
   let afterLogin = null;
   let resendTimer = null;
-  function openLogin(cb) {
+  let stopBale = null;
+  function finishLogin(res) {
+    auth.set(res.token, res.user);
+    closeLogin();
+    renderAuthArea();
+    toast('خوش آمدید!');
+    if (afterLogin) { const cb = afterLogin; afterLogin = null; cb(); }
+  }
+  function startBale() {
+    const link = $('#login-bale-link');
+    link.removeAttribute('href');
+    link.textContent = 'در حال آماده‌سازی…';
+    $('#login-bale-wait').classList.add('hidden');
+    $('#login-bale-retry').classList.add('hidden');
+    $('#login-error').innerHTML = '';
+    if (stopBale) stopBale();
+    stopBale = baleLogin({
+      onLink: (url) => { link.href = url; link.textContent = '🤖 ورود با بله'; },
+      onDone: finishLogin,
+      onFail: (msg) => {
+        $('#login-error').innerHTML = `<div class="alert err">${esc(msg)}</div>`;
+        $('#login-bale-wait').classList.add('hidden');
+        $('#login-bale-retry').classList.remove('hidden');
+      },
+    });
+  }
+  async function openLogin(cb) {
     afterLogin = cb || null;
+    if (await authMethod() === 'bale') {
+      $('#login-modal').classList.remove('hidden');
+      $('#login-bale').classList.remove('hidden');
+      $('#login-step-mobile').classList.add('hidden');
+      $('#login-step-code').classList.add('hidden');
+      startBale();
+      return;
+    }
     $('#login-modal').classList.remove('hidden');
     $('#login-step-mobile').classList.remove('hidden');
     $('#login-step-code').classList.add('hidden');
@@ -161,7 +195,7 @@
     $('#dev-code').innerHTML = '';
     setTimeout(() => $('#login-step-mobile [name=mobile]').focus(), 50);
   }
-  function closeLogin() { $('#login-modal').classList.add('hidden'); }
+  function closeLogin() { $('#login-modal').classList.add('hidden'); if (stopBale) { stopBale(); stopBale = null; } }
 
   async function requestCode(mobile) {
     $('#login-error').innerHTML = '';
@@ -220,6 +254,8 @@
       btn.disabled = false;
     });
 
+    $('#login-bale-link').addEventListener('click', () => { $('#login-bale-wait').classList.remove('hidden'); });
+    $('#login-bale-retry').addEventListener('click', startBale);
     $('#btn-change-mobile').addEventListener('click', () => openLogin(afterLogin));
     $('#btn-resend').addEventListener('click', async () => {
       try { await requestCode($('#login-mobile').textContent); toast('کد جدید ارسال شد.'); }

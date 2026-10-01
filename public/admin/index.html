@@ -22,7 +22,13 @@
   <div id="login-view" class="center-page hidden" style="min-height:calc(100vh - 64px)">
     <div class="card narrow">
       <h2>ورود مدیر</h2>
-      <p class="muted">با شماره موبایلی که در <code>ADMIN_MOBILES</code> تعریف شده وارد شوید.</p>
+      <p class="muted">با شماره موبایل مدیر (تعریف‌شده در نصب یا <code>ADMIN_MOBILES</code>) وارد شوید.</p>
+      <div id="lg-bale" class="stack hidden" style="text-align:center">
+        <p>دکمه زیر را بزنید و در ربات بله «✅ تأیید ورود» را بزنید. (فقط شماره‌های مدیر)</p>
+        <a id="lg-bale-link" class="btn primary block" target="_blank" rel="noopener">در حال آماده‌سازی…</a>
+        <p id="lg-bale-wait" class="muted hidden" style="font-size:.85rem">⏳ منتظر تأیید در بله…</p>
+        <button class="btn ghost sm hidden" type="button" id="lg-bale-retry">تلاش دوباره</button>
+      </div>
       <form id="lg-mobile" class="stack">
         <input type="tel" name="mobile" class="ltr" style="width:100%" placeholder="09121234567" required>
         <button class="btn primary block">دریافت کد</button>

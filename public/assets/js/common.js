@@ -92,5 +92,48 @@
     return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
   }
 
-  global.T = { api, ApiError, auth, toman, rial, num, esc, toast, fmtDate, debounce, ORDER_STATUS, GATEWAY_LABEL, LEVEL };
+  // ---- login method: "bale" (confirm inside the Bale bot) or "otp" (SMS code)
+  let methodPromise = null;
+  function authMethod() {
+    if (!methodPromise) methodPromise = api('/api/v1/auth/methods', { auth: false }).then((d) => d.method).catch(() => 'otp');
+    return methodPromise;
+  }
+
+  /**
+   * Starts a Bale login request and polls until the user confirms in the bot.
+   * onLink(url) → show a link (must be a real <a> so mobile browsers open the Bale app);
+   * onDone({token,user}); onFail(message). Returns a stop() function.
+   */
+  function baleLogin({ onLink, onDone, onFail }) {
+    let stopped = false;
+    let timer = null;
+    let pollNow = null;
+    const onVisible = () => { if (!document.hidden && pollNow) { clearTimeout(timer); pollNow(); } };
+    const stop = () => { stopped = true; clearTimeout(timer); document.removeEventListener('visibilitychange', onVisible); };
+    (async () => {
+      let s;
+      try { s = await api('/api/v1/auth/bale/start', { method: 'POST', body: {}, auth: false }); }
+      catch (e) { if (!stopped) onFail(e.message); return; }
+      if (stopped) return;
+      onLink(s.link);
+      const until = Date.now() + s.expires_in * 1000;
+      document.addEventListener('visibilitychange', onVisible);
+      pollNow = async () => {
+        if (stopped) return;
+        if (Date.now() > until) { stop(); onFail('زمان تأیید تمام شد. دوباره «ورود با بله» را بزنید.'); return; }
+        try {
+          const p = await api('/api/v1/auth/bale/poll', { method: 'POST', body: { token: s.token }, auth: false });
+          if (stopped) return;
+          if (p.status === 'approved') { stop(); onDone(p); return; }
+          if (p.status === 'denied') { stop(); onFail('ورود در ربات بله رد شد.'); return; }
+          if (p.status === 'expired') { stop(); onFail('درخواست منقضی شد. دوباره تلاش کنید.'); return; }
+        } catch { /* network hiccup: keep polling */ }
+        timer = setTimeout(pollNow, 2000);
+      };
+      pollNow();
+    })();
+    return stop;
+  }
+
+  global.T = { authMethod, baleLogin, api, ApiError, auth, toman, rial, num, esc, toast, fmtDate, debounce, ORDER_STATUS, GATEWAY_LABEL, LEVEL };
 })(window);

@@ -82,6 +82,7 @@ $defaults = [
     'bale_wallet' => $current['BALE_WALLET_TOKEN'] ?? '',
     'bale_otp' => '1',
     'bale_pay' => '1',
+    'ssl_off' => '',
 ];
 if (preg_match('/your|here|xxx/i', $defaults['sms_key'])) { $defaults['sms_key'] = ''; }
 $in = $defaults;
@@ -90,6 +91,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $in['sandbox'] = isset($_POST['sandbox']) ? '1' : '';
     $in['bale_otp'] = isset($_POST['bale_otp']) ? '1' : '';
     $in['bale_pay'] = isset($_POST['bale_pay']) ? '1' : '';
+    $in['ssl_off'] = isset($_POST['ssl_off']) ? '1' : '';
+    if ($in['ssl_off']) { \Terrarium\Infrastructure\Http\HttpClient::$verifyOverride = false; }
 }
 
 // ------------------------------------------------------------------ helpers
@@ -171,6 +174,7 @@ function buildEnv(array $in, string $template, string $existingKey): string
         'BALE_WALLET_TOKEN' => $in['bale_wallet'],
         'BALE_SAFIR_API_KEY' => $in['bale_safir'],
         'BALE_OTP_ENABLED' => 'false',
+        'HTTP_SSL_VERIFY' => $in['ssl_off'] ? 'false' : 'true',
     ];
     $sandbox = $in['sandbox'] ? 'true' : 'false';
     if ($gw === 'zarinpal') { $values += ['ZARINPAL_MERCHANT_ID' => $in['merchant'], 'ZARINPAL_SANDBOX' => $sandbox]; }
@@ -214,7 +218,10 @@ if (!$locked && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     $in['bale_username'] = (string) ($me['username'] ?? '');
                     $log[] = ['ok', 'ربات بله: <b dir="ltr">@' . h($in['bale_username']) . '</b>'];
                 } catch (Throwable $e) {
-                    $log[] = ['warn', 'اتصال به ربات بله ممکن نشد (توکن یا اینترنت سرور را بررسی کنید): ' . h($e->getMessage())];
+                    $sslHint = preg_match('/certificate|SSL/i', $e->getMessage())
+                        ? '<br><b>راه‌حل:</b> آنتی‌ویروس/فایروال سرور (مثل Kaspersky یا ESET) اتصال HTTPS را بازرسی می‌کند. «HTTPS scanning» را برای php-cgi.exe خاموش کنید، یا تیک «بررسی گواهی SSL را خاموش کن» را بزنید و دوباره نصب کنید.'
+                        : '';
+                    $log[] = ['warn', 'اتصال به ربات بله ممکن نشد (توکن یا اینترنت سرور را بررسی کنید): ' . h($e->getMessage()) . $sslHint];
                 }
             }
 
@@ -408,6 +415,7 @@ $sel = fn (string $k, string $v) => $in[$k] === $v ? 'selected' : '';
         <label>کلید API سفیر (ارسال پیام بدون استارت) <input name="bale_safir" dir="ltr" value="<?= h($in['bale_safir']) ?>"></label>
         <label>توکن کیف پول (پرداخت) <input name="bale_wallet" dir="ltr" placeholder="WALLET-..." value="<?= h($in['bale_wallet']) ?>"></label>
         <p class="full fix">با وارد کردن توکن ربات، ورود سایت با «تأیید در ربات بله» انجام می‌شود (بدون کد و پیامک). سفیر اختیاری است: فقط برای ارسال خودکار پیام پرداخت به کسی که ربات را استارت نکرده.</p>
+        <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="ssl_off" style="width:auto" <?= $in['ssl_off'] ? 'checked' : '' ?>> بررسی گواهی SSL را خاموش کن (فقط اگر خطای «self-signed certificate» گرفتید)</label>
         <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="bale_pay" style="width:auto" <?= $in['bale_pay'] ? 'checked' : '' ?>> اگر درگاه دیگری انتخاب شد، کیف پول بله هم کنارش فعال باشد</label>
       </div>
     </fieldset>

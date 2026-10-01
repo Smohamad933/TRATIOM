@@ -187,6 +187,7 @@
       else if ((el = e.target.closest('[data-preset-edit]'))) applyPreset(el.dataset.presetEdit, 'edit');
       else if ((el = e.target.closest('[data-preset-reset]'))) applyPreset(el.dataset.presetReset, null);
       else if (e.target.closest('[data-scratch]')) startScratch();
+      else if (e.target.closest('[data-jump]')) { e.preventDefault(); document.getElementById(e.target.closest('[data-jump]').dataset.jump).scrollIntoView({ behavior: 'smooth' }); }
     });
     $('#final-modal').addEventListener('click', (e) => {
       if (e.target.id === 'final-modal' || e.target.closest('[data-close]')) closeFinal();
@@ -228,7 +229,7 @@
 
     $('#opt-glass').innerHTML = c.glass_sizes.length ? c.glass_sizes.map((x) => `
       <div class="option ${state.cart.glass === x.id ? 'selected' : ''} ${x.stock_quantity < 1 ? 'disabled' : ''}" data-glass="${esc(x.id)}" tabindex="0">
-        ${x.image_url ? `<img class="thumb" src="${esc(x.image_url)}" alt="" loading="lazy">` : '<div class="emoji">🫙</div>'}
+        <div class="art">${x.image_url ? `<img src="${esc(x.image_url)}" alt="" loading="lazy">` : window.TerrariumPreview.item('glass', x, c)}</div>
         <div class="name">${esc(x.name)}</div>
         <div class="meta">حجم مفید ${num(x.usable_volume_ml)} میلی‌لیتر · تا ${num(x.max_plant_capacity)} گیاه</div>
         <div class="tags">${x.is_closed_ecosystem ? '<span class="badge info">دربسته (مرطوب)</span>' : '<span class="badge">درباز</span>'}
@@ -240,7 +241,7 @@
       const q = state.cart[kind][x.id] || 0;
       const out = x.stock_quantity < 1;
       return `<div class="option ${q ? 'selected' : ''} ${out ? 'disabled' : ''}" data-kind="${kind}" data-id="${esc(x.id)}">
-        ${x.image_url ? `<img class="thumb" src="${esc(x.image_url)}" alt="" loading="lazy">` : `<div class="emoji">${emoji}</div>`}
+        <div class="art">${x.image_url ? `<img src="${esc(x.image_url)}" alt="" loading="lazy">` : window.TerrariumPreview.item(kind, x, c)}</div>
         <div class="name">${esc(x.name)}</div>
         <div class="meta">${meta}</div>
         <div class="tags">${tags}${out ? '<span class="badge err">ناموجود</span>' : ''}</div>

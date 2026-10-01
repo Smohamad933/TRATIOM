@@ -304,5 +304,26 @@
     </svg>`;
   }
 
-  global.TerrariumPreview = { svg };
+  // single-item illustration for option cards
+  function item(kind, x, catalog) {
+    const rand = rng(String(x.id || x.name));
+    let body = '';
+    if (kind === 'glass') {
+      return svg({ glass: x.id, plants: {}, stones: {}, figures: {} }, catalog || { glass_sizes: [x] });
+    }
+    if (kind === 'plants') {
+      const k = plantKind(x);
+      body = `<ellipse cx="60" cy="88" rx="34" ry="7" fill="#6b4a33"/><ellipse cx="60" cy="86" rx="30" ry="5" fill="#7d5a3f"/>` +
+        drawPlant(k, 60, 86, k === 'moss' ? 1.25 : k === 'fern' ? 0.72 : 0.9, rand);
+    } else if (kind === 'stones') {
+      const st = layerStyle(x);
+      body = `<path d="M18 90 Q60 40 102 90 Z" fill="${st.fill}"/>` + pebbles(26, 94, 62, 88, st.dots, 0, rand, 4.5) +
+        (st.pebbles ? pebbles(30, 90, 70, 88, st.fill, 0, rand, 6) : '');
+    } else {
+      body = `<ellipse cx="60" cy="88" rx="30" ry="5" fill="#cfe3d2"/>` + drawFigure(x, 60, 86, 1.7);
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" class="item-svg" aria-hidden="true">${body}</svg>`;
+  }
+
+  global.TerrariumPreview = { svg, item };
 })(window);

@@ -6,3 +6,4 @@
 .vscode/
 /storage/database/*.sqlite*
 /storage/installed.lock
+/storage/bale_bot.json

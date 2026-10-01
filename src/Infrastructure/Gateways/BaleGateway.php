@@ -27,10 +27,35 @@ final class BaleGateway implements PaymentGatewayInterface
     public function __construct(
         private readonly BaleBotClient $bot,
         private readonly SafirClient $safir,
-        private readonly string $botUsername,
+        private string $botUsername,
         private readonly string $walletToken,
-        private readonly ?Logger $logger = null
+        private readonly ?Logger $logger = null,
+        private readonly ?string $cacheFile = null
     ) {}
+
+    /** BALE_BOT_USERNAME may be left empty: it is then read once from getMe and cached. */
+    public function botUsername(): string
+    {
+        if ($this->botUsername !== '') {
+            return $this->botUsername;
+        }
+        if ($this->cacheFile !== null && is_file($this->cacheFile)) {
+            $c = json_decode((string) file_get_contents($this->cacheFile), true);
+            if (is_array($c) && ($c['token'] ?? '') === $this->bot->tokenFingerprint() && !empty($c['username'])) {
+                return $this->botUsername = (string) $c['username'];
+            }
+        }
+        try {
+            $this->botUsername = (string) ($this->bot->getMe()['username'] ?? '');
+        } catch (\Throwable $e) {
+            $this->logger?->warning('Bale getMe failed', ['error' => $e->getMessage()]);
+            return '';
+        }
+        if ($this->botUsername !== '' && $this->cacheFile !== null) {
+            @file_put_contents($this->cacheFile, json_encode(['token' => $this->bot->tokenFingerprint(), 'username' => $this->botUsername]));
+        }
+        return $this->botUsername;
+    }
 
     public function getGatewayIdentifier(): string
     {
@@ -39,7 +64,7 @@ final class BaleGateway implements PaymentGatewayInterface
 
     public function isConfigured(): bool
     {
-        return $this->bot->isConfigured() && $this->botUsername !== '' && $this->walletToken !== '';
+        return $this->bot->isConfigured() && $this->walletToken !== '';
     }
 
     public function walletToken(): string
@@ -49,7 +74,7 @@ final class BaleGateway implements PaymentGatewayInterface
 
     public function deepLink(string $startPayload = ''): string
     {
-        return 'https://ble.ir/' . rawurlencode($this->botUsername) . ($startPayload !== '' ? '?start=' . rawurlencode($startPayload) : '');
+        return 'https://ble.ir/' . rawurlencode($this->botUsername()) . ($startPayload !== '' ? '?start=' . rawurlencode($startPayload) : '');
     }
 
     public static function newToken(): string
@@ -61,6 +86,9 @@ final class BaleGateway implements PaymentGatewayInterface
     {
         if (!$this->isConfigured()) {
             throw new PaymentGatewayException('Bale payment is not configured (BALE_BOT_TOKEN, BALE_BOT_USERNAME, BALE_WALLET_TOKEN).');
+        }
+        if ($this->botUsername() === '') {
+            throw new PaymentGatewayException('Bale bot username unknown (set BALE_BOT_USERNAME or check the bot token / server internet).');
         }
         $token = self::newToken();
         $link = $this->deepLink('pay_' . $token);

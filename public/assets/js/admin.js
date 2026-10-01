@@ -374,7 +374,42 @@
           <p class="muted mt">درگاه‌های قابل انتخاب برای مشتری: <b>${s.available_gateways.map((g) => esc(GATEWAY_LABEL[g] || g)).join('، ') || 'هیچ'}</b></p>
           <p class="muted">تنظیم کلیدها در فایل <code>.env</code> سرور انجام می‌شود.</p>
         </div>
-      </div>`;
+      </div>
+      <div class="card mt" id="bale-card"><h3>🤖 ربات بله</h3><p class="muted">در حال بررسی…</p></div>`;
+    renderBale();
+  }
+
+  async function renderBale(data) {
+    const el = $('#bale-card');
+    if (!el) return;
+    try { data = data || await api('/api/v1/admin/bale'); }
+    catch (e) { el.innerHTML = `<h3>🤖 ربات بله</h3><div class="alert err">${esc(e.message)}</div>`; return; }
+    const b = (v, okT = 'فعال', badT = 'غیرفعال') => `<span class="badge ${v ? 'ok' : ''}">${v ? okT : badT}</span>`;
+    el.innerHTML = `
+      <h3>🤖 ربات بله</h3>
+      ${!data.bot_configured ? '<div class="alert warn">توکن ربات تنظیم نشده است. در <code>.env</code> مقدار <code>BALE_BOT_TOKEN</code> و <code>BALE_BOT_USERNAME</code> را از @botfather در بله وارد کنید.</div>' : ''}
+      ${data.bot_error ? `<div class="alert err">خطای اتصال به بله: ${esc(data.bot_error)}</div>` : ''}
+      <div class="grid grid-2">
+        <div>
+          <div class="summary-line"><span>ربات</span><span>${data.bot ? `<a href="${esc(data.link)}" target="_blank" rel="noopener" class="ltr">@${esc(data.bot.username)}</a>` : '—'}</span></div>
+          <div class="summary-line"><span>وب‌هوک</span>${b(data.webhook_ok, 'متصل', 'متصل نیست')}</div>
+          <div class="summary-line"><span>کاربران متصل</span><b>${num(data.linked_users)}</b></div>
+        </div>
+        <div>
+          <div class="summary-line"><span>پرداخت با کیف پول بله</span><span>${b(data.payment_enabled)} ${data.wallet_test_mode ? '<span class="badge warn">توکن آزمایشی</span>' : ''}</span></div>
+          <div class="summary-line"><span>ارسال کد ورود در بله (سفیر)</span>${b(data.otp_via_bale)}</div>
+          <div class="summary-line"><span>سفیر (پیام بدون استارت)</span>${b(data.safir_configured, 'تنظیم‌شده', 'تنظیم نشده')}</div>
+        </div>
+      </div>
+      ${data.bot_configured ? `<div class="row gap wrap mt"><button class="btn primary sm" id="btn-bale-setup">🔗 ${data.webhook_ok ? 'اتصال مجدد' : 'اتصال'} ربات به سایت</button>
+        <span class="muted" style="font-size:.85rem">آدرس: <span class="ltr">${esc(data.webhook_expected)}</span></span></div>` : ''}
+      ${data.payment_enabled ? '' : '<p class="muted mt">برای فعال شدن پرداخت: <code>BALE_WALLET_TOKEN</code> را تنظیم و <code>bale</code> را به <code>ENABLED_PAYMENT_GATEWAYS</code> اضافه کنید.</p>'}`;
+    const btn = $('#btn-bale-setup');
+    if (btn) btn.onclick = async () => {
+      btn.disabled = true;
+      try { const d = await api('/api/v1/admin/bale/setup', { method: 'POST', body: {} }); toast('ربات به سایت متصل شد ✅'); renderBale(d); }
+      catch (e) { toast(e.message, 'err'); btn.disabled = false; }
+    };
   }
 
   // ------------------------------------------------------------------ init

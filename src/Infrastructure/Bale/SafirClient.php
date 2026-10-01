@@ -13,8 +13,6 @@ use Terrarium\Infrastructure\Http\HttpClient;
  */
 final class SafirClient
 {
-    private const URL = 'https://safir.bale.ai/api/v3/send_message';
-
     /** Safir error codes (docs.bale.ai/safir) */
     public const ERRORS = [
         2 => 'خطای داخلی سرور بله',
@@ -29,7 +27,8 @@ final class SafirClient
     public function __construct(
         private readonly string $apiKey,
         private readonly int $botId,
-        private readonly HttpClient $http = new HttpClient(15)
+        private readonly HttpClient $http = new HttpClient(15),
+        private readonly string $url = 'https://safir.bale.ai/api/v3/send_message'
     ) {}
 
     public function isConfigured(): bool
@@ -70,7 +69,7 @@ final class SafirClient
             return ['ok' => false, 'code' => 0, 'error' => 'Safir is not configured (BALE_SAFIR_API_KEY / bot id).'];
         }
         try {
-            $res = $this->http->request('POST', self::URL, [
+            $res = $this->http->request('POST', $this->url, [
                 'request_id' => bin2hex(random_bytes(12)),
                 'bot_id' => $this->botId,
                 'phone_number' => self::phone($mobile),

@@ -284,6 +284,13 @@
           },
         });
         localStorage.removeItem(CART_KEY);
+        if (isBaleLink(res.payment_url)) {
+          // Bale: the bot also messaged the customer; show the order page with a big "pay in Bale" button
+          sessionStorage.setItem('bale_pay_' + res.order_id, res.payment_url);
+          location.hash = '#/orders/' + res.order_id;
+          btn.disabled = false;
+          return;
+        }
         window.location.href = res.payment_url;
         return;
       } catch (err) {
@@ -327,6 +334,17 @@
     }
   }
 
+  const isBaleLink = (u) => typeof u === 'string' && /^https:\/\/ble\.ir\//.test(u);
+
+  function baleBox(url) {
+    return `<div class="alert info stack" style="text-align:center">
+      <b>💳 پرداخت با کیف پول بله</b>
+      <span>پیام پرداخت در «بله» برایتان ارسال شد. می‌توانید از همان پیام یا دکمه زیر پرداخت کنید.</span>
+      <a class="btn primary block" href="${esc(url)}" target="_blank" rel="noopener">باز کردن ربات بله و پرداخت</a>
+      <button class="btn sm" onclick="location.reload()">پرداخت کردم، بررسی وضعیت</button>
+    </div>`;
+  }
+
   async function renderOrder(id) {
     const box = $('#order-detail');
     if (!auth.token) { openLogin(() => renderOrder(id)); box.innerHTML = ''; return; }
@@ -353,6 +371,7 @@
             <div class="row between"><span>تاریخ ثبت</span><span>${fmtDate(o.created_at)}</span></div>
             ${o.paid_at ? `<div class="row between"><span>تاریخ پرداخت</span><span>${fmtDate(o.paid_at)}</span></div>` : ''}
             ${o.payments.filter((p) => p.status === 'success').map((p) => `<div class="row between"><span>کد پیگیری</span><b class="ltr">${esc(p.reference_id)}</b></div>`).join('')}
+            ${o.status === 'pending_payment' && sessionStorage.getItem('bale_pay_' + o.id) ? baleBox(sessionStorage.getItem('bale_pay_' + o.id)) : ''}
             ${o.status === 'pending_payment' && gws.length ? `
               <label class="field"><span>درگاه</span><select id="repay-gw">${gws.map((g) => `<option value="${esc(g)}" ${g === o.payment_gateway ? 'selected' : ''}>${esc(GATEWAY_LABEL[g] || g)}</option>`).join('')}</select></label>
               <button class="btn primary block" id="btn-repay">پرداخت سفارش</button>` : ''}
@@ -364,6 +383,11 @@
           repay.disabled = true;
           try {
             const r = await api(`/api/v1/orders/${encodeURIComponent(o.id)}/pay`, { method: 'POST', body: { gateway: $('#repay-gw').value } });
+            if (isBaleLink(r.payment_url)) {
+              sessionStorage.setItem('bale_pay_' + o.id, r.payment_url);
+              renderOrder(o.id);
+              return;
+            }
             window.location.href = r.payment_url;
           } catch (e) { toast(e.message, 'err'); repay.disabled = false; }
         };

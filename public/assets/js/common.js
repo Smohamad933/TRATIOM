@@ -81,7 +81,7 @@
     cancelled: 'لغوشده',
     failed: 'ناموفق',
   };
-  const GATEWAY_LABEL = { zarinpal: 'زرین‌پال', zibal: 'زیبال', idpay: 'آیدی‌پی', stripe: 'Stripe', test: 'درگاه آزمایشی' };
+  const GATEWAY_LABEL = { bale: 'کیف پول بله', zarinpal: 'زرین‌پال', zibal: 'زیبال', idpay: 'آیدی‌پی', stripe: 'Stripe', test: 'درگاه آزمایشی' };
   const LEVEL = {
     light: { low: 'نور کم', medium: 'نور متوسط', bright: 'نور زیاد' },
     moisture: { low: 'رطوبت کم', medium: 'رطوبت متوسط', high: 'رطوبت زیاد' },

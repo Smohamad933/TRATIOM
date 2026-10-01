@@ -12,9 +12,11 @@ use Terrarium\Infrastructure\Http\HttpClient;
  */
 final class BaleBotClient
 {
-    private const BASE = 'https://tapi.bale.ai/bot';
-
-    public function __construct(private readonly string $token, private readonly HttpClient $http = new HttpClient()) {}
+    public function __construct(
+        private readonly string $token,
+        private readonly HttpClient $http = new HttpClient(),
+        private readonly string $apiBase = 'https://tapi.bale.ai'
+    ) {}
 
     public function isConfigured(): bool
     {
@@ -31,19 +33,30 @@ final class BaleBotClient
             throw new BaleApiException('BALE_BOT_TOKEN is not configured.');
         }
         try {
-            $res = $this->http->request('POST', self::BASE . $this->token . '/' . $method, $params === [] ? '{}' : $params, $params === [] ? ['Content-Type' => 'application/json'] : []);
+            $res = $this->http->request('POST', $this->apiBase . '/bot' . $this->token . '/' . $method, $params === [] ? '{}' : $params, $params === [] ? ['Content-Type' => 'application/json'] : []);
         } catch (\Throwable $e) {
-            throw new BaleApiException('Bale API unreachable: ' . $e->getMessage());
+            throw new BaleApiException('Bale API unreachable: ' . $this->mask($e->getMessage()));
         }
         $json = is_array($res['json']) ? $res['json'] : [];
         if (($json['ok'] ?? false) !== true) {
             throw new BaleApiException(
-                (string) ($json['description'] ?? ('HTTP ' . $res['status'] . ' ' . mb_substr($res['body'], 0, 200))),
+                $this->mask((string) ($json['description'] ?? ('HTTP ' . $res['status'] . ' ' . mb_substr($res['body'], 0, 200)))),
                 (int) ($json['error_code'] ?? $res['status']),
                 $json
             );
         }
         return $json['result'] ?? true;
+    }
+
+    public function tokenFingerprint(): string
+    {
+        return substr(hash('sha256', $this->token), 0, 16);
+    }
+
+    /** Never let the bot token reach logs or the screen. */
+    private function mask(string $s): string
+    {
+        return $this->token === '' ? $s : str_replace($this->token, '<token>', $s);
     }
 
     /** @param array<string, mixed>|null $markup */

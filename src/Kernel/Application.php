@@ -132,15 +132,16 @@ final class Application
                 $this->get(PaymentRepository::class),
                 $this->get(UserRepository::class)
             ),
-            BaleBotClient::class => new BaleBotClient((string) $c->get('bale.bot_token', ''), $this->get(HttpClient::class)),
-            SafirClient::class => new SafirClient((string) $c->get('bale.safir_api_key', ''), (int) $c->get('bale.bot_id', 0)),
+            BaleBotClient::class => new BaleBotClient((string) $c->get('bale.bot_token', ''), $this->get(HttpClient::class), (string) $c->get('bale.api_base', 'https://tapi.bale.ai')),
+            SafirClient::class => new SafirClient((string) $c->get('bale.safir_api_key', ''), (int) $c->get('bale.bot_id', 0), new HttpClient(15), (string) $c->get('bale.safir_url', 'https://safir.bale.ai/api/v3/send_message')),
             BaleChatRepository::class => new BaleChatRepository($this->get(Database::class)),
             BaleGateway::class => new BaleGateway(
                 $this->get(BaleBotClient::class),
                 $this->get(SafirClient::class),
                 (string) $c->get('bale.bot_username', ''),
                 (string) $c->get('bale.wallet_token', ''),
-                $this->get(Logger::class)
+                $this->get(Logger::class),
+                $this->basePath . '/storage/bale_bot.json'
             ),
             BaleBotService::class => new BaleBotService(
                 $this->get(BaleBotClient::class),
@@ -227,7 +228,13 @@ final class Application
     public function baleWebhookSecret(): string
     {
         $s = (string) $this->config->get('bale.webhook_secret', '');
-        return $s !== '' ? $s : substr(hash_hmac('sha256', 'bale-webhook', $this->appSecret()), 0, 40);
+        return $s !== '' ? $s : self::deriveBaleSecret($this->appSecret());
+    }
+
+    /** Also used by the installer, which runs before the new .env is loaded. */
+    public static function deriveBaleSecret(string $appSecret): string
+    {
+        return substr(hash_hmac('sha256', 'bale-webhook', $appSecret), 0, 40);
     }
 
     public function baleWebhookUrl(): string

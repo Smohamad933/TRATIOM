@@ -17,6 +17,9 @@ return [
     'safir_api_key' => (string) env('BALE_SAFIR_API_KEY', ''),
     // Send login codes through Bale (falls back to SMS when the number has no Bale account)
     'otp_enabled' => (bool) env('BALE_OTP_ENABLED', false),
+    // API endpoints (change only for a proxy or testing)
+    'api_base' => rtrim((string) env('BALE_API_BASE', 'https://tapi.bale.ai'), '/'),
+    'safir_url' => (string) env('BALE_SAFIR_URL', 'https://safir.bale.ai/api/v3/send_message'),
     // Secret part of the webhook URL. Empty => derived from APP_KEY
     'webhook_secret' => (string) env('BALE_WEBHOOK_SECRET', ''),
 ];

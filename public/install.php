@@ -8,6 +8,7 @@ declare(strict_types=1);
  */
 
 use Terrarium\Application\UseCases\Auth\OtpService;
+use Terrarium\Infrastructure\Bale\BaleBotClient;
 use Terrarium\Infrastructure\Persistence\Database;
 use Terrarium\Infrastructure\Persistence\Migrator;
 use Terrarium\Infrastructure\Persistence\Repositories\UserRepository;
@@ -76,12 +77,19 @@ $defaults = [
     'merchant' => '',
     'sandbox' => '',
     'shipping' => '50000',
+    'bale_token' => $current['BALE_BOT_TOKEN'] ?? '',
+    'bale_safir' => $current['BALE_SAFIR_API_KEY'] ?? '',
+    'bale_wallet' => $current['BALE_WALLET_TOKEN'] ?? '',
+    'bale_otp' => '1',
+    'bale_pay' => '1',
 ];
 if (preg_match('/your|here|xxx/i', $defaults['sms_key'])) { $defaults['sms_key'] = ''; }
 $in = $defaults;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($defaults as $k => $_) { $in[$k] = trim((string) ($_POST[$k] ?? '')); }
     $in['sandbox'] = isset($_POST['sandbox']) ? '1' : '';
+    $in['bale_otp'] = isset($_POST['bale_otp']) ? '1' : '';
+    $in['bale_pay'] = isset($_POST['bale_pay']) ? '1' : '';
 }
 
 // ------------------------------------------------------------------ helpers
@@ -136,6 +144,8 @@ function envValue(string $v): string
 function buildEnv(array $in, string $template, string $existingKey): string
 {
     $gw = $in['gateway'];
+    $baleUser = $in['bale_username'] ?? '';
+    $balePay = $in['bale_pay'] && $in['bale_token'] !== '' && $in['bale_wallet'] !== '';
     $values = [
         'APP_ENV' => $in['app_env'] === 'local' ? 'local' : 'production',
         'APP_DEBUG' => 'false',
@@ -154,8 +164,13 @@ function buildEnv(array $in, string $template, string $existingKey): string
         'SMS_DEFAULT_PROVIDER' => $in['sms_provider'],
         'SMS_API_KEY' => $in['sms_key'],
         'SMS_OTP_TEMPLATE' => $in['sms_template'],
-        'ENABLED_PAYMENT_GATEWAYS' => $gw,
+        'ENABLED_PAYMENT_GATEWAYS' => $balePay ? $gw . ',bale' : $gw,
         'DEFAULT_PAYMENT_GATEWAY' => $gw,
+        'BALE_BOT_TOKEN' => $in['bale_token'],
+        'BALE_BOT_USERNAME' => $baleUser,
+        'BALE_WALLET_TOKEN' => $in['bale_wallet'],
+        'BALE_SAFIR_API_KEY' => $in['bale_safir'],
+        'BALE_OTP_ENABLED' => $in['bale_otp'] && $in['bale_safir'] !== '' ? 'true' : 'false',
     ];
     $sandbox = $in['sandbox'] ? 'true' : 'false';
     if ($gw === 'zarinpal') { $values += ['ZARINPAL_MERCHANT_ID' => $in['merchant'], 'ZARINPAL_SANDBOX' => $sandbox]; }
@@ -192,6 +207,16 @@ if (!$locked && $_SERVER['REQUEST_METHOD'] === 'POST') {
             (new UserRepository($db))->setAdmin($mobile, true);
             $log[] = ['ok', 'شماره <b dir="ltr">' . h($mobile) . '</b> مدیر سایت شد'];
 
+            if ($in['bale_token'] !== '') {
+                try {
+                    $me = (new BaleBotClient($in['bale_token']))->getMe();
+                    $in['bale_username'] = (string) ($me['username'] ?? '');
+                    $log[] = ['ok', 'ربات بله: <b dir="ltr">@' . h($in['bale_username']) . '</b>'];
+                } catch (Throwable $e) {
+                    $log[] = ['warn', 'اتصال به ربات بله ممکن نشد (توکن یا اینترنت سرور را بررسی کنید): ' . h($e->getMessage())];
+                }
+            }
+
             $template = is_file($envFile) ? (string) file_get_contents($envFile) : (string) file_get_contents($base . '/.env.example');
             $env = buildEnv($in, $template, $current['APP_KEY'] ?? '');
             if (@file_put_contents($envFile, $env) === false) {
@@ -199,6 +224,23 @@ if (!$locked && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $log[] = ['err', 'نوشتن فایل .env ممکن نشد (دسترسی). متن پایین را در فایل <code dir="ltr">' . h($envFile) . '</code> ذخیره کنید.'];
             } else {
                 $log[] = ['ok', 'فایل تنظیمات .env ذخیره شد'];
+            }
+
+            if ($envPreview === null && ($in['bale_username'] ?? '') !== '') {
+                if (str_starts_with($in['app_url'], 'https://')) {
+                    try {
+                        preg_match('/^APP_KEY=(.*)$/m', $env, $km);
+                        $key = trim($km[1] ?? '', " \t\"'");
+                        $key = str_starts_with($key, 'base64:') ? (string) base64_decode(substr($key, 7), true) : $key;
+                        $hookUrl = rtrim($in['app_url'], '/') . '/api/v1/bale/webhook/' . \Terrarium\Kernel\Application::deriveBaleSecret($key);
+                        (new BaleBotClient($in['bale_token']))->setWebhook($hookUrl);
+                        $log[] = ['ok', 'ربات بله به سایت متصل شد (وب‌هوک)'];
+                    } catch (Throwable $e) {
+                        $log[] = ['warn', 'اتصال وب‌هوک بله ممکن نشد؛ بعداً از پنل مدیریت ← سیستم ← «اتصال ربات به سایت» بزنید. (' . h($e->getMessage()) . ')'];
+                    }
+                } else {
+                    $log[] = ['warn', 'وب‌هوک بله فقط با https کار می‌کند. پس از نصب SSL از پنل مدیریت ← سیستم ← «اتصال ربات به سایت» را بزنید.'];
+                }
             }
 
             if (@file_put_contents($lockFile, gmdate('c')) !== false) {
@@ -354,6 +396,17 @@ $sel = fn (string $k, string $v) => $in[$k] === $v ? 'selected' : '';
         </label>
         <label class="gw">مرچنت‌کد / API Key <input name="merchant" dir="ltr" value="<?= h($in['merchant']) ?>"></label>
         <label class="gw full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="sandbox" style="width:auto" <?= $in['sandbox'] ? 'checked' : '' ?>> حالت Sandbox (آزمایشی درگاه)</label>
+      </div>
+    </fieldset>
+
+    <fieldset class="fs">
+      <legend>ربات بله (اختیاری)</legend>
+      <div class="grid-form">
+        <label class="full">توکن ربات (از @botfather در بله) <input name="bale_token" dir="ltr" placeholder="123456789:AbCd..." value="<?= h($in['bale_token']) ?>"></label>
+        <label>کلید API سفیر (ارسال پیام بدون استارت) <input name="bale_safir" dir="ltr" value="<?= h($in['bale_safir']) ?>"></label>
+        <label>توکن کیف پول (پرداخت) <input name="bale_wallet" dir="ltr" placeholder="WALLET-..." value="<?= h($in['bale_wallet']) ?>"></label>
+        <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="bale_otp" style="width:auto" <?= $in['bale_otp'] ? 'checked' : '' ?>> کد ورود در بله ارسال شود (اگر کاربر بله نداشت، پیامک)</label>
+        <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="bale_pay" style="width:auto" <?= $in['bale_pay'] ? 'checked' : '' ?>> پرداخت با کیف پول بله هم فعال باشد</label>
       </div>
     </fieldset>
 

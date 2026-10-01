@@ -126,7 +126,9 @@
 
   function renderLivePreview() {
     if (!state.catalog) return;
-    $('#live-preview').innerHTML = window.TerrariumPreview.svg(state.cart, state.catalog);
+    const svg = window.TerrariumPreview.svg(state.cart, state.catalog);
+    $('#live-preview').innerHTML = svg;
+    const mini = $('#mb-preview'); if (mini) mini.innerHTML = state.cart.glass ? svg : '';
   }
 
   // ------------------------------------------------------------------ final preview (before checkout)
@@ -310,6 +312,17 @@
   }
 
   function renderSummary() {
+    renderSummaryMain();
+    const bar = $('#mobile-bar'); if (!bar) return;
+    const v = state.validation, btn = $('#btn-checkout');
+    bar.classList.toggle('hidden', !state.cart.glass);
+    document.body.classList.toggle('has-mobile-bar', !!state.cart.glass);
+    $('#mb-total').textContent = v && v.price ? toman(v.price.total_cents) : '—';
+    $('#mb-status').textContent = !v ? 'در حال بررسی…' : v.error ? 'خطا' : v.is_valid ? '✓ سازگار' : '⚠ نیاز به اصلاح';
+    $('#mb-status').className = 'mb-status ' + (v && v.is_valid ? 'ok' : 'err');
+    $('#mb-go').disabled = btn.disabled;
+  }
+  function renderSummaryMain() {
     const box = $('#summary');
     const btn = $('#btn-checkout');
     const v = state.validation;
@@ -484,6 +497,8 @@
 
   function bindCheckout() {
     $('#btn-checkout').addEventListener('click', openFinal);
+    $('#mb-go').addEventListener('click', openFinal);
+    $('#mb-preview').addEventListener('click', () => $('#summary').scrollIntoView({ behavior: 'smooth', block: 'center' }));
 
     $('#checkout-form').addEventListener('submit', async (e) => {
       e.preventDefault();

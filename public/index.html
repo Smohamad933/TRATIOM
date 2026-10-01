@@ -13,8 +13,8 @@
     <div class="container">
       <a class="brand" href="#/"><span class="brand-logo">🌱</span><span>تراریوم</span></a>
       <nav class="row gap-sm">
-        <a class="btn ghost sm" href="#/">ساخت تراریوم</a>
-        <a class="btn ghost sm" href="#/orders">سفارش‌های من</a>
+        <a class="btn ghost sm hide-xs" href="#/">ساخت تراریوم</a>
+        <a class="btn ghost sm" href="#/orders">سفارش‌ها<span class="hide-xs">ی من</span></a>
         <span id="auth-area"></span>
       </nav>
     </div>
@@ -25,9 +25,10 @@
 
     <!-- Configurator -->
     <section id="view-builder">
-      <div class="hero">
+      <div class="hero hero-band">
         <h1>تراریوم دلخواهت را انتخاب کن یا بساز 🌿</h1>
         <p class="muted">یکی از تراریوم‌های آماده را همان‌طور بخر، بخشی از آن را تغییر بده، یا از صفر بساز. سیستم سازگاری گیاهان، حجم و ظرفیت ظرف را خودکار بررسی می‌کند.</p>
+        <div class="hero-steps"><span><b>۱</b> انتخاب آماده یا ظرف</span><span><b>۲</b> گیاه و تزئین</span><span><b>۳</b> پیش‌نمایش و پرداخت</span></div>
       </div>
 
       <section class="mb-lg" id="presets-section">
@@ -107,6 +108,13 @@
       <div id="order-detail"></div>
     </section>
   </main>
+
+  <!-- Mobile bottom bar -->
+  <div id="mobile-bar" class="mobile-bar hidden">
+    <button type="button" id="mb-preview" class="mb-preview" aria-label="خلاصه"></button>
+    <div class="mb-info"><b id="mb-total">—</b><span id="mb-status" class="mb-status"></span></div>
+    <button type="button" id="mb-go" class="btn primary" disabled>نسخه نهایی</button>
+  </div>
 
   <footer class="footer">© تراریوم — ساخته‌شده با 🌱</footer>
 

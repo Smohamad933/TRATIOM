@@ -240,3 +240,114 @@ pre.json { background: #1c2a1f; color: #d7f0dd; padding: 12px; border-radius: 10
 aside.sticky { max-height: calc(100vh - 96px); overflow: auto; }
 #live-preview .terrarium-svg { max-width: 230px; }
 @media (max-width: 960px) { aside.sticky { max-height: none; overflow: visible; } }
+
+/* ================= UI polish & responsive ================= */
+:focus-visible { outline: 3px solid #9fd3b2; outline-offset: 2px; }
+.btn { min-height: 40px; }
+.btn.sm { min-height: 32px; }
+.card { transition: box-shadow .2s; }
+.option { display: flex; flex-direction: column; }
+.option .price { margin-top: auto; padding-top: 6px; color: var(--primary-600); }
+.option.selected::after { content: "✓"; position: absolute; top: 8px; left: 8px; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--primary); color: #fff; font-weight: 800; font-size: 14px; display: grid; place-items: center; line-height: 1; }
+.preset .ph img { transition: transform .4s; }
+.preset:hover .ph img { transform: scale(1.04); }
+
+.hero-band { margin-top: 18px; padding: 28px 26px; border-radius: 20px; border: 1px solid var(--border);
+  background: radial-gradient(120% 140% at 100% 0%, #e2f2e7 0%, #f4f7f2 55%, #f8f3e8 100%); }
+.hero-band h1 { margin-bottom: .35em; }
+.hero-band p { max-width: 720px; }
+.hero-steps { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.hero-steps span { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.8); border: 1px solid var(--border);
+  padding: 5px 12px 5px 14px; border-radius: 999px; font-size: .85rem; font-weight: 700; }
+.hero-steps b { width: 22px; height: 22px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: .75rem; }
+#presets-section { margin-top: 24px; }
+
+/* mobile bottom bar */
+.mobile-bar { display: none; }
+@media (max-width: 960px) {
+  .mobile-bar:not(.hidden) { display: flex; }
+  .mobile-bar { position: fixed; inset: auto 0 0 0; z-index: 30; align-items: center; gap: 12px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.96);
+    backdrop-filter: blur(8px); border-top: 1px solid var(--border); box-shadow: 0 -6px 24px rgba(20,40,25,.08); }
+  .mb-preview { width: 52px; height: 52px; flex: none; border-radius: 12px; border: 1px solid var(--border); background: #f2f7f3; padding: 2px; cursor: pointer; }
+  .mb-preview .terrarium-svg { width: 100%; height: 100%; }
+  .mb-info { flex: 1; display: flex; flex-direction: column; line-height: 1.4; min-width: 0; }
+  .mb-info b { font-size: 1.05rem; }
+  .mb-status { font-size: .78rem; font-weight: 700; }
+  .mb-status.ok { color: var(--primary); } .mb-status.err { color: var(--danger); }
+  body.has-mobile-bar .footer { padding-bottom: 100px; }
+  body.has-mobile-bar #toast { bottom: 90px; }
+  aside.sticky { position: static; }
+}
+
+/* tablets */
+@media (max-width: 960px) {
+  .layout > aside { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .layout > aside > .mt { margin-top: 0; }
+}
+
+/* phones */
+@media (max-width: 640px) {
+  body { font-size: 14px; }
+  .container { padding: 0 12px; }
+  .topbar .container { height: 56px; }
+  .brand-logo { width: 34px; height: 34px; }
+  .hide-xs { display: none !important; }
+  .card { padding: 14px; border-radius: 12px; }
+  h2 { font-size: 1.1rem; }
+  .hero-band { padding: 18px 16px; margin-top: 12px; border-radius: 16px; }
+  .hero h1, .hero-band h1 { font-size: 1.3rem; }
+  .hero-steps span { font-size: .75rem; padding: 3px 8px 3px 10px; }
+
+  /* presets: swipeable carousel */
+  .preset-grid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin-inline: -12px; padding: 4px 12px 12px; scrollbar-width: none; }
+  .preset-grid::-webkit-scrollbar { display: none; }
+  .preset { flex: 0 0 78%; scroll-snap-align: center; }
+  .preset .ph { aspect-ratio: 4 / 3; }
+  .preset.scratch .ph svg { width: 34%; }
+  .preset .actions .btn { padding: 8px 6px; font-size: .85rem; }
+
+  /* options: two compact columns */
+  .options { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .option { padding: 10px; border-radius: 10px; }
+  .option .name { font-size: .88rem; line-height: 1.5; }
+  .option .meta { font-size: .72rem; }
+  .option .tags .badge { font-size: .68rem; padding: 1px 7px; }
+  .qty button { width: 34px; height: 34px; }
+
+  .layout > aside { grid-template-columns: 1fr; }
+  #live-preview .terrarium-svg { max-width: 200px; }
+
+  /* modals become bottom sheets */
+  .modal-backdrop { padding: 0; place-items: end stretch; }
+  .modal { max-width: none !important; max-height: 92vh; border-radius: 18px 18px 0 0; padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); animation: sheet .22s ease-out; }
+  .preview-box.lg .terrarium-svg { max-width: 260px; }
+  .final-grid { gap: 12px; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+@keyframes sheet { from { transform: translateY(40px); opacity: .6; } to { transform: none; opacity: 1; } }
+
+/* admin responsive */
+@media (max-width: 860px) {
+  .admin-shell { padding-top: 12px; gap: 12px; }
+  .side-nav { position: sticky; top: 56px; z-index: 15; background: var(--bg); margin-inline: -12px; padding: 8px 12px; gap: 6px;
+    scrollbar-width: none; border-bottom: 1px solid var(--border); }
+  .side-nav::-webkit-scrollbar { display: none; }
+  .side-nav button { padding: 7px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; flex: none; font-size: .88rem; }
+  .side-nav button.active { border-color: var(--primary); }
+}
+.table-wrap { -webkit-overflow-scrolling: touch; }
+@media (max-width: 760px) {
+  .table-wrap table.table { min-width: 680px; }
+  .table input[type=number] { width: 100px; }
+  #content .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .stat { padding: 12px; } .stat .value { font-size: 1.15rem; }
+  .topbar .brand span:last-child { font-size: 1rem; }
+}
+@media (max-width: 420px) {
+  .admin-topbar-store { display: none !important; }
+}
+.option .qty { align-self: flex-start; }
+.admin-shell > main, .layout > * { min-width: 0; }
+@media (max-width: 860px) { .admin-shell { grid-template-columns: minmax(0, 1fr); } }

@@ -70,6 +70,9 @@ return static function (Application $app): Router {
     $r->post('/api/v1/admin/presets/{id}', [$adm, 'updatePreset'], $admin);
     $r->post('/api/v1/admin/presets/{id}/delete', [$adm, 'deletePreset'], $admin);
     $r->post('/api/v1/admin/upload', [$adm, 'upload'], $admin);
+    $r->get('/api/v1/admin/font', [$adm, 'font'], $admin);
+    $r->post('/api/v1/admin/font', [$adm, 'uploadFont'], $admin);
+    $r->post('/api/v1/admin/font/delete', [$adm, 'deleteFont'], $admin);
     $r->get('/api/v1/admin/rules', [$adm, 'rules'], $admin);
     $r->post('/api/v1/admin/rules', [$adm, 'createRule'], $admin);
     $r->post('/api/v1/admin/rules/{id}/toggle', [$adm, 'toggleRule'], $admin);

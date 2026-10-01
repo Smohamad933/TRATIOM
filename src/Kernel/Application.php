@@ -128,6 +128,7 @@ final class Application
                 $this->get(Logger::class)
             ),
             \Terrarium\Infrastructure\Persistence\Repositories\PresetRepository::class => new \Terrarium\Infrastructure\Persistence\Repositories\PresetRepository($this->get(Database::class)),
+            \Terrarium\Application\UseCases\Admin\FontService::class => new \Terrarium\Application\UseCases\Admin\FontService($this->basePath . '/public/uploads'),
             \Terrarium\Application\UseCases\Admin\PresetService::class => new \Terrarium\Application\UseCases\Admin\PresetService(
                 $this->get(\Terrarium\Infrastructure\Persistence\Repositories\PresetRepository::class),
                 $this->get(\Terrarium\Application\UseCases\Configurator\ValidateConfigurationUseCase::class),

@@ -114,7 +114,7 @@
     currentTab = tab;
     document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     content().innerHTML = '<p class="muted">در حال بارگذاری…</p>';
-    ({ dashboard, orders, presets, catalog, rules, system }[tab])().catch((e) => {
+    ({ dashboard, orders, presets, catalog, appearance, rules, system }[tab])().catch((e) => {
       content().innerHTML = `<div class="alert err">${esc(e.message)}</div>`;
     });
   }
@@ -221,6 +221,7 @@
       <div class="row between wrap gap mb"><h2 style="margin:0">قیمت و موجودی</h2><button class="btn primary sm" id="btn-new-item">+ افزودن ${TYPE_LABEL[catalogType]}</button></div>
       <div class="tabs">${Object.entries(TYPE_LABEL).map(([k, v]) => `<button data-type="${k}" class="${k === catalogType ? 'active' : ''}">${v}</button>`).join('')}</div>
       <div class="card"><p class="muted">قیمت‌ها به <b>ریال</b> وارد می‌شوند. تغییرات فوراً روی فروشگاه اعمال می‌شود (سفارش‌های قبلی تغییر نمی‌کنند).</p>
+      <div class="alert info" style="font-size:.85rem">📐 عکس محصول: ${IMG_HINT}</div>
       <div class="table-wrap"><table class="table">
         <thead><tr><th>عکس</th><th>عنوان</th><th>مشخصات</th><th>قیمت (ریال)</th><th>موجودی</th><th>فعال</th><th></th></tr></thead>
         <tbody>${rows.map((x) => `<tr data-id="${esc(x.id)}">
@@ -274,17 +275,23 @@
   }
 
   // ---- images: resized in the browser (max 1400px JPEG) so uploads stay small and fast
-  function resizeImage(file, max = 1400) {
+  // Product & preset photos are shown square (1:1) everywhere (desktop and mobile),
+  // so the image is center-cropped to a square and scaled to at most 1200×1200.
+  const IMG_SIZE = 1200, IMG_MIN = 800;
+  const IMG_HINT = 'سایز پیشنهادی: ۱۲۰۰×۱۲۰۰ پیکسل (مربع ۱:۱) · حداقل ۸۰۰×۸۰۰ · JPG/PNG/WEBP. سوژه را وسط کادر بگذارید؛ اگر عکس مربع نباشد، وسط آن خودکار برش می‌خورد.';
+  function resizeImage(file, max = IMG_SIZE) {
     return new Promise((resolve, reject) => {
       if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { reject(new Error('فقط تصویر JPG، PNG یا WEBP.')); return; }
       const img = new Image();
       img.onload = () => {
-        const k = Math.min(1, max / Math.max(img.width, img.height));
+        const side = Math.min(img.width, img.height);
+        if (side < IMG_MIN) toast(`عکس کوچک است (${side}px). برای کیفیت بهتر حداقل ${IMG_MIN}×${IMG_MIN} بگذارید.`, 'err');
+        const out = Math.min(max, side);
         const c = document.createElement('canvas');
-        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.width = out; c.height = out;
         const ctx = c.getContext('2d');
-        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
-        ctx.drawImage(img, 0, 0, c.width, c.height);
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, out, out);
+        ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, out, out);
         URL.revokeObjectURL(img.src);
         resolve(c.toDataURL('image/jpeg', 0.86));
       };
@@ -295,6 +302,69 @@
   async function uploadImage(file) {
     const r = await api('/api/v1/admin/upload', { method: 'POST', body: { image: await resizeImage(file) } });
     return r.url;
+  }
+
+  // ---- appearance: custom site font
+  async function appearance() {
+    const { font } = await api('/api/v1/admin/font');
+    content().innerHTML = `
+      <div class="row between wrap gap mb"><h2 style="margin:0">ظاهر سایت</h2></div>
+      <div class="grid grid-2">
+        <div class="card stack">
+          <h3>فونت سایت</h3>
+          <p class="muted" style="font-size:.88rem">یک فایل فونت آپلود کنید تا فروشگاه و پنل مدیریت با آن نمایش داده شوند. فرمت <b>WOFF2</b> پیشنهاد می‌شود (سبک‌تر و سریع‌تر)؛ WOFF، TTF و OTF هم قبول است. حداکثر ۵ مگابایت. برای فارسی، فونتی با پشتیبانی کامل فارسی (مثل وزیرمتن، ایران‌سنس، یکان‌بخ) انتخاب کنید.</p>
+          <div class="alert ${font ? 'ok' : 'info'}">${font ? `فونت فعلی: <b>${esc(font.name)}</b> <span class="mono">(${esc(font.file)})</span>` : 'فونت فعلی: وزیرمتن (پیش‌فرض)'}</div>
+          <label class="field"><span>نام فونت (برای نمایش)</span><input type="text" id="font-name" maxlength="60" placeholder="مثلاً ایران‌سنس" value="${font ? esc(font.name) : ''}"></label>
+          <div class="row gap-sm wrap">
+            <label class="btn primary">انتخاب و آپلود فونت<input type="file" id="font-file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" hidden></label>
+            ${font ? '<button class="btn" id="font-del">بازگشت به فونت پیش‌فرض</button>' : ''}
+          </div>
+          <p class="muted" style="font-size:.8rem">نکته: اگر فونت چند وزن (نازک/ضخیم) دارد، فایل «Variable» آن را آپلود کنید تا همه وزن‌ها درست نمایش داده شوند. بعد از تغییر، Ctrl+F5 بزنید.</p>
+        </div>
+        <div class="card stack">
+          <h3>پیش‌نمایش</h3>
+          <div id="font-preview" class="font-preview">
+            <div style="font-weight:800;font-size:1.6rem">یک جنگل کوچک، درست همان‌طور که دوست داری</div>
+            <div style="font-weight:700;font-size:1.1rem">تراریوم‌های آماده · ۷۱۳٬۰۰۰ تومان</div>
+            <div style="font-weight:400">از بین تراریوم‌های آماده انتخاب کن یا قدم‌به‌قدم خودت بساز. 0123456789 ۰۱۲۳۴۵۶۷۸۹</div>
+          </div>
+          <h3 class="mt">راهنمای سایز عکس‌ها</h3>
+          <table class="table"><thead><tr><th>کجا</th><th>سایز پیشنهادی</th><th>نسبت</th></tr></thead><tbody>
+            <tr><td>عکس محصولات (ظرف، گیاه، سنگ، فیگور)</td><td class="ltr">1200 × 1200</td><td>۱:۱</td></tr>
+            <tr><td>عکس تراریوم‌های آماده</td><td class="ltr">1200 × 1200</td><td>۱:۱</td></tr>
+            <tr><td>حداقل قابل قبول</td><td class="ltr">800 × 800</td><td>۱:۱</td></tr>
+          </tbody></table>
+          <p class="muted" style="font-size:.8rem">همه عکس‌ها در دسکتاپ و موبایل به‌صورت مربع نمایش داده می‌شوند. سوژه را وسط کادر و با کمی فاصله از لبه‌ها بگذارید؛ پس‌زمینه روشن و یکدست بهترین نتیجه را می‌دهد. عکس‌های غیرمربع هنگام آپلود از وسط برش می‌خورند.</p>
+        </div>
+      </div>`;
+    const preview = $('#font-preview');
+    $('#font-file').onchange = async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      if (file.size > 5 * 1024 * 1024) { toast('حجم فونت حداکثر ۵ مگابایت است.', 'err'); return; }
+      try {
+        // live preview before upload
+        const buf = await file.arrayBuffer();
+        const ff = new FontFace('AdminPreviewFont', buf); await ff.load(); document.fonts.add(ff);
+        preview.style.fontFamily = 'AdminPreviewFont, sans-serif';
+      } catch { toast('مرورگر نتوانست این فونت را بخواند؛ فایل ممکن است خراب باشد.', 'err'); return; }
+      const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+      const name = $('#font-name').value.trim() || file.name.replace(/\.[^.]+$/, '');
+      try {
+        toast('در حال آپلود فونت…');
+        await api('/api/v1/admin/font', { method: 'POST', body: { font: dataUrl, name } });
+        reloadCustomCss(); toast('فونت ذخیره و روی سایت اعمال شد.'); appearance();
+      } catch (err) { toast(err.message, 'err'); }
+    };
+    const del = $('#font-del');
+    if (del) del.onclick = async () => {
+      if (!confirm('فونت سفارشی حذف و فونت پیش‌فرض برگردانده شود؟')) return;
+      try { await api('/api/v1/admin/font/delete', { method: 'POST' }); reloadCustomCss(); toast('فونت پیش‌فرض برگشت.'); appearance(); }
+      catch (err) { toast(err.message, 'err'); }
+    };
+  }
+  function reloadCustomCss() {
+    const l = document.getElementById('custom-font-css');
+    if (l) l.href = '/uploads/fonts/custom.css?v=' + Date.now();
   }
 
   // ---- presets (ready-made terrariums)
@@ -363,7 +433,7 @@
           <div><b>عکس محصول</b>
             <div class="preset-photo" id="pf-photo"></div>
             <div class="row gap-sm mt"><label class="btn sm">📷 انتخاب عکس<input type="file" accept="image/jpeg,image/png,image/webp" id="pf-file" hidden></label><button type="button" class="btn ghost sm" id="pf-photo-del">حذف عکس</button></div>
-            <p class="muted" style="font-size:.8rem">اگر عکس نگذارید، پیش‌نمایش طراحی‌شده نمایش داده می‌شود.</p>
+            <p class="muted" style="font-size:.8rem">اگر عکس نگذارید، پیش‌نمایش طراحی‌شده نمایش داده می‌شود.<br>📐 ${IMG_HINT}</p>
           </div>
           <div><b>پیش‌نمایش ترکیب</b><div class="preview-box sm" id="pf-preview"></div><div id="pf-total" class="muted mt"></div></div>
           <div id="pf-err"></div>

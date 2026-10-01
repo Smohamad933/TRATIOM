@@ -348,7 +348,7 @@
   function renderAuthArea() {
     const u = auth.user;
     $('#auth-area').innerHTML = u
-      ? `${u.is_admin ? '<a class="btn sm" href="/admin/">پنل مدیریت</a> ' : ''}<button class="btn sm" id="btn-logout" title="خروج">${esc(u.mobile)} · خروج</button>`
+      ? `<span class="auth-btns">${u.is_admin ? '<a class="btn sm" href="/admin/" title="پنل مدیریت">پنل<span class="hide-xs"> مدیریت</span></a>' : ''}<button class="btn sm" id="btn-logout" title="خروج ${esc(u.mobile)}"><span class="hide-xs">${esc(u.mobile)} · </span>خروج</button></span>`
       : '<button class="btn primary sm" id="btn-login">ورود</button>';
   }
 

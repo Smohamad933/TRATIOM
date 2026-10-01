@@ -39,6 +39,10 @@ final class AdminController
     public function updatePreset(Request $r): Response { return $this->ok($this->presetSvc()->save($r->params['id'], $r->body)); }
     public function deletePreset(Request $r): Response { $this->presetSvc()->delete($r->params['id']); return $this->ok(['deleted' => true]); }
     public function upload(Request $r): Response { return $this->ok(['url' => $this->presetSvc()->upload((string) $r->input('image', ''))], 201); }
+    private function fontSvc(): \Terrarium\Application\UseCases\Admin\FontService { return $this->app->get(\Terrarium\Application\UseCases\Admin\FontService::class); }
+    public function font(Request $r): Response { return $this->ok(['font' => $this->fontSvc()->current()]); }
+    public function uploadFont(Request $r): Response { return $this->ok(['font' => $this->fontSvc()->upload((string) $r->input('font', ''), (string) $r->input('name', ''))], 201); }
+    public function deleteFont(Request $r): Response { $this->fontSvc()->remove(); return $this->ok(['font' => null]); }
     public function rules(Request $r): Response { return $this->ok($this->svc()->rules()); }
     public function createRule(Request $r): Response { return $this->ok($this->svc()->createRule($r->body), 201); }
 
